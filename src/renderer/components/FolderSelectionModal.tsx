@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './FolderSelectionModal.css';
 
 interface FolderSelectionModalProps {
@@ -14,15 +14,20 @@ const FolderSelectionModal: React.FC<FolderSelectionModalProps> = ({
   onCancel,
   defaultFolder,
 }) => {
-  const [selectedPath, setSelectedPath] = useState<string>('');
-  const [useDefaultFolder, setUseDefaultFolder] = useState<boolean>(!!defaultFolder);
+  const [selectedPath, setSelectedPath] = useState<string>(defaultFolder || '');
+
+  // Update selectedPath when defaultFolder changes or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedPath(defaultFolder || '');
+    }
+  }, [isOpen, defaultFolder]);
 
   const handleSelectFolder = async () => {
     try {
       const result = await window.electron.selectFolder();
       if (result.success && result.path) {
         setSelectedPath(result.path);
-        setUseDefaultFolder(false);
       }
     } catch (error) {
       console.error('Error selecting folder:', error);
@@ -30,17 +35,14 @@ const FolderSelectionModal: React.FC<FolderSelectionModalProps> = ({
   };
 
   const handleConfirm = () => {
-    const folderToUse = useDefaultFolder && defaultFolder ? defaultFolder : selectedPath;
-    if (folderToUse) {
-      onConfirm(folderToUse);
-      setSelectedPath('');
-      setUseDefaultFolder(!!defaultFolder);
+    if (selectedPath) {
+      onConfirm(selectedPath);
+      setSelectedPath(defaultFolder || '');
     }
   };
 
   const handleCancel = () => {
-    setSelectedPath('');
-    setUseDefaultFolder(!!defaultFolder);
+    setSelectedPath(defaultFolder || '');
     onCancel();
   };
 
@@ -52,48 +54,20 @@ const FolderSelectionModal: React.FC<FolderSelectionModalProps> = ({
         <h2>Select Project Folder</h2>
         <p>Choose a folder for this conversation. The folder cannot be changed later.</p>
 
-        {defaultFolder && (
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              <input
-                type="radio"
-                checked={useDefaultFolder}
-                onChange={() => {
-                  setUseDefaultFolder(true);
-                  setSelectedPath('');
-                }}
-              />
-              <span>Use current folder: <strong>{defaultFolder.split('/').pop() || defaultFolder}</strong></span>
-            </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
-              <input
-                type="radio"
-                checked={!useDefaultFolder}
-                onChange={() => setUseDefaultFolder(false)}
-              />
-              <span>Choose a different folder</span>
-            </label>
-          </div>
-        )}
-
-        {(!defaultFolder || !useDefaultFolder) && (
-          <>
-            <div className="folder-display">
-              {selectedPath ? (
-                <div className="selected-path">
-                  <span className="path-label">Selected:</span>
-                  <span className="path-value">{selectedPath}</span>
-                </div>
-              ) : (
-                <div className="no-selection">No folder selected</div>
-              )}
+        <div className="folder-display">
+          {selectedPath ? (
+            <div className="selected-path">
+              <span className="path-label">Selected:</span>
+              <span className="path-value">{selectedPath}</span>
             </div>
+          ) : (
+            <div className="no-selection">No folder selected</div>
+          )}
+        </div>
 
-            <button className="select-folder-btn" onClick={handleSelectFolder}>
-              Browse...
-            </button>
-          </>
-        )}
+        <button className="select-folder-btn" onClick={handleSelectFolder}>
+          Browse...
+        </button>
 
         <div className="modal-actions">
           <button className="cancel-btn" onClick={handleCancel}>
@@ -102,7 +76,7 @@ const FolderSelectionModal: React.FC<FolderSelectionModalProps> = ({
           <button
             className="confirm-btn"
             onClick={handleConfirm}
-            disabled={!useDefaultFolder && !selectedPath}
+            disabled={!selectedPath}
           >
             Create Chat
           </button>
