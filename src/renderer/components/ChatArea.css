@@ -4,6 +4,7 @@
   flex-direction: column;
   height: 100vh;
   background-color: #1e1e1e;
+  position: relative;
 }
 
 .messages-container {

@@ -305,9 +305,9 @@ export class ConversationManager {
   async deleteConversation(conversationId: string): Promise<void> {
     this.db.prepare('DELETE FROM conversations WHERE id = ?').run(conversationId);
 
-    // If we deleted the current conversation, create a new one
+    // If we deleted the current conversation, clear it
     if (this.currentConversationId === conversationId) {
-      this.currentConversationId = this.createConversation();
+      this.currentConversationId = null;
     }
   }
 

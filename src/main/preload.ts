@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Folder selection
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  selectFiles: () => ipcRenderer.invoke('select-files'),
   getProjectPath: (conversationId: string) => ipcRenderer.invoke('get-project-path', conversationId),
   checkFolderExists: (folderPath: string) => ipcRenderer.invoke('check-folder-exists', folderPath),
   createFolder: (parentPath: string, folderName: string) => ipcRenderer.invoke('create-folder', parentPath, folderName),
@@ -97,6 +98,7 @@ export interface ElectronAPI {
   newConversationWithFolder: (folderPath: string) => Promise<{ success: boolean; conversationId: string }>;
   deleteConversation: (conversationId: string) => Promise<{ success: boolean }>;
   selectFolder: () => Promise<{ success: boolean; path?: string }>;
+  selectFiles: () => Promise<{ success: boolean; paths: string[] }>;
   getProjectPath: (conversationId: string) => Promise<{ path: string }>;
   checkFolderExists: (folderPath: string) => Promise<{ exists: boolean }>;
   createFolder: (parentPath: string, folderName: string) => Promise<{ success: boolean; error?: string; path: string | null }>;

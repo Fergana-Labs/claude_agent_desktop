@@ -301,6 +301,29 @@ ipcMain.handle('select-folder', async () => {
   return { success: false };
 });
 
+ipcMain.handle('select-files', async () => {
+  if (!mainWindow) {
+    throw new Error('Main window not initialized');
+  }
+
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    title: 'Select Files to Attach',
+    buttonLabel: 'Attach',
+    filters: [
+      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'] },
+      { name: 'Documents', extensions: ['pdf', 'txt', 'md', 'doc', 'docx'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return { success: true, paths: result.filePaths };
+  }
+
+  return { success: false, paths: [] };
+});
+
 ipcMain.handle('get-project-path', async (event, conversationId: string) => {
   if (!conversationManager) {
     throw new Error('Conversation manager not initialized');

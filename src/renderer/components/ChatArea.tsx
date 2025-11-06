@@ -20,9 +20,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequest[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
+  const dragCounterRef = useRef(0);
 
   // Store per-conversation state
   const conversationInputsRef = useRef<Map<string, string>>(new Map());
@@ -328,16 +330,66 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
   };
 
-  const handleFileAttach = () => {
-    // In a real app, you'd use Electron's dialog to select files
-    const filePath = prompt('Enter file path to attach:');
-    if (filePath) {
-      setAttachedFiles([...attachedFiles, filePath]);
+  const handleFileAttach = async () => {
+    try {
+      const result = await window.electron.selectFiles();
+      if (result.success && result.paths.length > 0) {
+        setAttachedFiles([...attachedFiles, ...result.paths]);
+      }
+    } catch (error) {
+      console.error('Error selecting files:', error);
     }
   };
 
   const removeAttachment = (index: number) => {
     setAttachedFiles(attachedFiles.filter((_, i) => i !== index));
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const filePaths: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        // In Electron, we can access the file path
+        const path = (file as any).path;
+        if (path) {
+          filePaths.push(path);
+        }
+      }
+      if (filePaths.length > 0) {
+        setAttachedFiles([...attachedFiles, ...filePaths]);
+      }
+    }
   };
 
   const handleModeChange = async (newMode: PermissionMode) => {
@@ -404,8 +456,67 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
   };
 
+  // Show empty state when no conversation is selected
+  if (!conversation) {
+    return (
+      <div className="chat-area" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%'
+      }}>
+        <div style={{
+          textAlign: 'center',
+          color: '#888',
+          maxWidth: '400px',
+          padding: '40px'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>💬</div>
+          <h2 style={{ color: '#ddd', marginBottom: '12px' }}>No Conversations Yet</h2>
+          <p style={{ fontSize: '14px', lineHeight: '1.6' }}>
+            Click the "New Chat" button in the sidebar to start a conversation with Claude.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="chat-area">
+    <div
+      className="chat-area"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(74, 158, 255, 0.1)',
+          border: '2px dashed #4a9eff',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none'
+        }}>
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.8)',
+            padding: '20px 40px',
+            borderRadius: '8px',
+            color: '#4a9eff',
+            fontSize: '18px',
+            fontWeight: 'bold'
+          }}>
+            Drop files here to attach
+          </div>
+        </div>
+      )}
       {/* Mode Selector Bar */}
       <div style={{
         background: '#2a2a2a',

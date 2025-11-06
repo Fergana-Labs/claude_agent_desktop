@@ -42,14 +42,21 @@ function App() {
 
       setConversations(convos);
 
-      // Load the most recent conversation
-      if (convos.length > 0 && !currentConversation) {
-        loadConversation(convos[0].id);
-      }
+      // Check if current conversation still exists
+      const currentStillExists = currentConversation && convos.some(c => c.id === currentConversation.id);
 
-      // If we have a current conversation, reload it to get updated messages
-      if (currentConversation) {
+      if (convos.length === 0) {
+        // No conversations left, clear current conversation
+        setCurrentConversation(null);
+      } else if (!currentStillExists) {
+        // Current conversation was deleted, load the most recent one
+        loadConversation(convos[0].id);
+      } else if (currentConversation) {
+        // Reload current conversation to get updated messages
         await loadConversation(currentConversation.id);
+      } else {
+        // No current conversation but conversations exist, load the first one
+        loadConversation(convos[0].id);
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
