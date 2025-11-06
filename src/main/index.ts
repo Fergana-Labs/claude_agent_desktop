@@ -167,14 +167,35 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     mainWindow?.webContents.send('user-message-saved', { conversationId });
 
     // Stream Claude's response via the agent manager
-    let fullResponse = '';
+    // Track text chunks between events for proper chronological ordering
+    let currentTextChunk = '';
+
+    // Helper function to save accumulated text chunk
+    const saveTextChunk = async () => {
+      if (currentTextChunk.trim() && conversationManager) {
+        try {
+          await conversationManager.saveMessage({
+            role: 'assistant',
+            content: currentTextChunk,
+            messageType: 'assistant',
+          }, conversationId);
+          mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+          currentTextChunk = '';
+        } catch (error) {
+          console.error('Error saving text chunk:', error);
+        }
+      }
+    };
 
     await agentManager.sendMessage(conversationId, message, attachments, {
       onToken: (token: string) => {
-        fullResponse += token;
+        currentTextChunk += token;
         mainWindow?.webContents.send('message-token', { token, conversationId });
       },
       onThinking: async (thinking: string) => {
+        // Save accumulated text before thinking
+        await saveTextChunk();
+
         // Save thinking as a separate message
         if (!conversationManager) return;
         try {
@@ -190,6 +211,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         }
       },
       onToolUse: async (toolName: string, toolInput: any) => {
+        // Save accumulated text before tool use
+        await saveTextChunk();
+
         // Save tool_use as a separate message
         if (!conversationManager) return;
         try {
@@ -211,6 +235,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         }
       },
       onToolResult: async (toolName: string, result: any) => {
+        // Save accumulated text before tool result
+        await saveTextChunk();
+
         // Save tool_result as a separate message
         if (!conversationManager) return;
         try {
@@ -239,11 +266,8 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       },
     });
 
-    // Save assistant response to the specified conversation
-    await conversationManager.saveMessage({
-      role: 'assistant',
-      content: fullResponse,
-    }, conversationId);
+    // Save any remaining text chunk at the end
+    await saveTextChunk();
 
     // Notify frontend that assistant message was saved (triggers conversation list refresh for activity badges)
     mainWindow?.webContents.send('assistant-message-saved', { conversationId });

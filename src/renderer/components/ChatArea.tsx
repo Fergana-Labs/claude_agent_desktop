@@ -17,7 +17,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [activeTool, setActiveTool] = useState<ToolExecution | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const [folderExists, setFolderExists] = useState(true);
   const [mode, setMode] = useState<PermissionMode>('default');
@@ -37,7 +36,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const conversationAttachmentsRef = useRef<Map<string, string[]>>(new Map());
   const conversationLoadingRef = useRef<Map<string, boolean>>(new Map());
   const conversationStreamingRef = useRef<Map<string, string>>(new Map());
-  const conversationToolRef = useRef<Map<string, ToolExecution | null>>(new Map());
   const conversationPermissionsRef = useRef<Map<string, PermissionRequest[]>>(new Map());
 
   useEffect(() => {
@@ -62,24 +60,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       }
     });
 
-    // Set up tool execution listener
-    const removeToolListener = window.electron.onToolExecution((data: ToolExecution & { conversationId: string }) => {
-      // Store the tool execution for the conversation it belongs to
-      conversationToolRef.current.set(data.conversationId, data);
-
-      // Only update UI if this is the currently viewed conversation
-      if (conversation?.id === data.conversationId) {
-        setActiveTool(data);
-        if (data.status === 'completed') {
-          setTimeout(() => {
-            conversationToolRef.current.set(data.conversationId, null);
-            if (conversation?.id === data.conversationId) {
-              setActiveTool(null);
-            }
-          }, 2000);
-        }
-      }
-    });
+    // Tool execution events are now saved as messages in the database
+    // No need for temporary tool indicators
 
     // Set up permission request listener
     const removePermissionListener = window.electron.onPermissionRequest((request: PermissionRequest & { conversationId: string }) => {
@@ -164,7 +146,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     return () => {
       removeTokenListener();
-      removeToolListener();
       removePermissionListener();
       removeInterruptListener();
       removeUserMessageSavedListener();
@@ -182,11 +163,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         conversationAttachmentsRef.current.set(conversation.id, attachedFiles);
         conversationLoadingRef.current.set(conversation.id, isLoading);
         conversationStreamingRef.current.set(conversation.id, streamingContent);
-        conversationToolRef.current.set(conversation.id, activeTool);
         conversationPermissionsRef.current.set(conversation.id, permissionRequests);
       }
     };
-  }, [conversation?.id, input, attachedFiles, isLoading, streamingContent, activeTool, permissionRequests]);
+  }, [conversation?.id, input, attachedFiles, isLoading, streamingContent, permissionRequests]);
 
   useEffect(() => {
     // Restore state for new conversation
@@ -195,14 +175,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       const savedAttachments = conversationAttachmentsRef.current.get(conversation.id) || [];
       const savedLoading = conversationLoadingRef.current.get(conversation.id) || false;
       const savedStreaming = conversationStreamingRef.current.get(conversation.id) || '';
-      const savedTool = conversationToolRef.current.get(conversation.id) || null;
       const savedPermissions = conversationPermissionsRef.current.get(conversation.id) || [];
 
       setInput(savedInput);
       setAttachedFiles(savedAttachments);
       setIsLoading(savedLoading);
       setStreamingContent(savedStreaming);
-      setActiveTool(savedTool);
       setPermissionRequests(savedPermissions);
     } else {
       // Clear all state when no conversation
@@ -210,7 +188,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       setAttachedFiles([]);
       setIsLoading(false);
       setStreamingContent('');
-      setActiveTool(null);
       setPermissionRequests([]);
     }
   }, [conversation?.id]);
@@ -490,13 +467,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
   };
 
-  const getToolIcon = (toolName: string) => {
-    if (toolName.includes('word') || toolName.includes('docx')) return '📄';
-    if (toolName.includes('excel') || toolName.includes('xlsx')) return '📊';
-    if (toolName.includes('powerpoint') || toolName.includes('pptx')) return '📊';
-    return '🔧';
-  };
-
   const getModeLabel = (mode: PermissionMode) => {
     switch (mode) {
       case 'default': return 'Ask';
@@ -747,17 +717,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             </div>
           </div>
         ))}
-
-        {activeTool && (
-          <div className="tool-execution">
-            <span className="tool-icon">{getToolIcon(activeTool.tool)}</span>
-            <span className="tool-text">
-              {activeTool.status === 'running'
-                ? `Using ${activeTool.tool}...`
-                : `Completed ${activeTool.tool}`}
-            </span>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </div>
