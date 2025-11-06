@@ -53,6 +53,7 @@ export class ClaudeAgent extends EventEmitter {
   private readonly MAX_PROCESSING_ATTEMPTS = 100;
   private callbackQueue: MessageCallbacks[] = [];
   private currentCallbackIndex: number = 0;
+  private streamedTextByCallback: Map<number, string> = new Map();
 
   constructor(config: ClaudeAgentConfig) {
     super();
@@ -105,6 +106,7 @@ export class ClaudeAgent extends EventEmitter {
       // Clear callback queue from previous iteration
       this.callbackQueue = [];
       this.currentCallbackIndex = 0;
+      this.streamedTextByCallback.clear();
 
       try {
         const projectPath = this.config.projectPath || process.cwd();
@@ -201,6 +203,7 @@ export class ClaudeAgent extends EventEmitter {
     // Clear callback queue to prevent memory leaks
     this.callbackQueue = [];
     this.currentCallbackIndex = 0;
+    this.streamedTextByCallback.clear();
 
     // Emit processing complete event
     this.emit('processing-complete', {
@@ -281,9 +284,28 @@ export class ClaudeAgent extends EventEmitter {
           if (Array.isArray(content)) {
             console.log('[ClaudeAgent] Content blocks:', content.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking })));
             content.forEach((block: any) => {
-              if (block.type === 'text' && callbacks.onToken) {
-                console.log('[ClaudeAgent] Sending text block:', block.text.substring(0, 50));
-                callbacks.onToken(block.text);
+              if (block.type === 'text' && block.text && callbacks.onToken) {
+                const fullText = block.text;
+                const streamedText = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
+
+                if (streamedText.length === 0) {
+                  // No streaming occurred, send full text
+                  console.log('[ClaudeAgent] No streaming occurred, sending full text block');
+                  callbacks.onToken(fullText);
+                } else if (fullText.length > streamedText.length) {
+                  // Streaming failed midway, send the missing part
+                  const missingText = fullText.substring(streamedText.length);
+                  console.log('[ClaudeAgent] Streaming incomplete, sending missing text:', missingText.substring(0, 50));
+                  callbacks.onToken(missingText);
+                } else if (fullText !== streamedText) {
+                  // Edge case: Text differs but same length (shouldn't happen, but handle it)
+                  console.warn('[ClaudeAgent] Streamed text differs from final text!');
+                  console.log('[ClaudeAgent] Sending full text block to be safe');
+                  callbacks.onToken(fullText);
+                } else {
+                  // Streaming completed successfully, no action needed
+                  console.log('[ClaudeAgent] Text fully streamed, skipping duplicate');
+                }
               } else if (block.type === 'thinking' && callbacks.onThinking) {
                 callbacks.onThinking(block.thinking);
               } else if (block.type === 'tool_use' && callbacks.onToolUse) {
@@ -309,6 +331,10 @@ export class ClaudeAgent extends EventEmitter {
         if (streamMsg.event && streamMsg.event.delta) {
           const delta = streamMsg.event.delta;
           if (delta.type === 'text_delta' && delta.text) {
+            // Accumulate the streamed text for this callback
+            const currentStreamed = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
+            this.streamedTextByCallback.set(this.currentCallbackIndex, currentStreamed + delta.text);
+
             console.log('[ClaudeAgent] Found text delta:', delta.text.substring(0, 50));
             if (callbacks.onToken) {
               callbacks.onToken(delta.text);
@@ -317,6 +343,10 @@ export class ClaudeAgent extends EventEmitter {
         } else if ('delta' in streamMsg) {
           const delta = streamMsg.delta;
           if (delta && delta.type === 'text_delta' && delta.text) {
+            // Accumulate the streamed text for this callback
+            const currentStreamed = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
+            this.streamedTextByCallback.set(this.currentCallbackIndex, currentStreamed + delta.text);
+
             console.log('[ClaudeAgent] Found text delta (alt structure):', delta.text.substring(0, 50));
             if (callbacks.onToken) {
               callbacks.onToken(delta.text);
@@ -344,6 +374,8 @@ export class ClaudeAgent extends EventEmitter {
           to: this.currentCallbackIndex + 1,
           queueLength: this.callbackQueue.length,
         });
+        // Clean up accumulated text for this callback to prevent memory leaks
+        this.streamedTextByCallback.delete(this.currentCallbackIndex);
         this.currentCallbackIndex++;
         break;
 
