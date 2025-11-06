@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -174,24 +174,62 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         fullResponse += token;
         mainWindow?.webContents.send('message-token', { token, conversationId });
       },
-      onThinking: (thinking: string) => {
-        mainWindow?.webContents.send('message-thinking', { thinking, conversationId });
+      onThinking: async (thinking: string) => {
+        // Save thinking as a separate message
+        if (!conversationManager) return;
+        try {
+          await conversationManager.saveMessage({
+            role: 'assistant',
+            content: thinking,
+            messageType: 'thinking',
+          }, conversationId);
+          mainWindow?.webContents.send('message-thinking', { thinking, conversationId });
+          mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+        } catch (error) {
+          console.error('Error saving thinking message:', error);
+        }
       },
-      onToolUse: (toolName: string, toolInput: any) => {
-        mainWindow?.webContents.send('tool-execution', {
-          tool: toolName,
-          input: toolInput,
-          status: 'running',
-          conversationId,
-        });
+      onToolUse: async (toolName: string, toolInput: any) => {
+        // Save tool_use as a separate message
+        if (!conversationManager) return;
+        try {
+          await conversationManager.saveMessage({
+            role: 'assistant',
+            content: `${toolName} started`,
+            messageType: 'tool_use',
+            metadata: { toolName, input: toolInput },
+          }, conversationId);
+          mainWindow?.webContents.send('tool-execution', {
+            tool: toolName,
+            input: toolInput,
+            status: 'running',
+            conversationId,
+          });
+          mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+        } catch (error) {
+          console.error('Error saving tool_use message:', error);
+        }
       },
-      onToolResult: (toolName: string, result: any) => {
-        mainWindow?.webContents.send('tool-execution', {
-          tool: toolName,
-          result,
-          status: 'completed',
-          conversationId,
-        });
+      onToolResult: async (toolName: string, result: any) => {
+        // Save tool_result as a separate message
+        if (!conversationManager) return;
+        try {
+          await conversationManager.saveMessage({
+            role: 'assistant',
+            content: `${toolName} completed`,
+            messageType: 'tool_result',
+            metadata: { toolName, result },
+          }, conversationId);
+          mainWindow?.webContents.send('tool-execution', {
+            tool: toolName,
+            result,
+            status: 'completed',
+            conversationId,
+          });
+          mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+        } catch (error) {
+          console.error('Error saving tool_result message:', error);
+        }
       },
       onPermissionRequest: (request: any) => {
         mainWindow?.webContents.send('permission-request', { ...request, conversationId });
@@ -218,8 +256,25 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     }
 
     return { success: true, messageId };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending message:', error);
+
+    // Save error as a message
+    try {
+      await conversationManager.saveMessage({
+        role: 'assistant',
+        content: error.message || 'An error occurred',
+        messageType: 'error',
+        metadata: {
+          errorType: error.name || 'Error',
+          stack: error.stack,
+        },
+      }, conversationId);
+      mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+    } catch (saveError) {
+      console.error('Error saving error message:', saveError);
+    }
+
     throw error;
   }
 });
@@ -384,6 +439,17 @@ ipcMain.handle('create-folder', async (event, parentPath: string, folderName: st
   } catch (error) {
     console.error('Error creating folder:', error);
     return { success: false, error: (error as Error).message, path: null };
+  }
+});
+
+// Open file with system default application
+ipcMain.handle('open-file', async (event, filePath: string) => {
+  try {
+    await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error opening file:', error);
+    return { success: false, error: (error as Error).message };
   }
 });
 

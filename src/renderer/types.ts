@@ -1,5 +1,7 @@
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
 
+export type MessageType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'error';
+
 export interface Message {
   id?: number;
   conversationId?: string;
@@ -7,6 +9,8 @@ export interface Message {
   content: string;
   attachments?: string[];
   timestamp?: number;
+  messageType?: MessageType;
+  metadata?: any;
 }
 
 export interface Conversation {

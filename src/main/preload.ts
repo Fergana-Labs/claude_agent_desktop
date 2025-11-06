@@ -98,6 +98,9 @@ contextBridge.exposeInMainWorld('electron', {
   interruptMessage: (conversationId?: string) => ipcRenderer.invoke('interrupt-message', conversationId),
   approvePermission: (permissionId: string) => ipcRenderer.invoke('approve-permission', permissionId),
   denyPermission: (permissionId: string) => ipcRenderer.invoke('deny-permission', permissionId),
+
+  // File operations
+  openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
 });
 
 // Type definitions for TypeScript
@@ -127,6 +130,7 @@ export interface ElectronAPI {
   interruptMessage: (conversationId?: string) => Promise<{ success: boolean; error?: string }>;
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;
+  openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

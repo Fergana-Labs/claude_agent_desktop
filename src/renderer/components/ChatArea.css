@@ -305,3 +305,146 @@ textarea:disabled {
 .message-content p:last-child {
   margin-bottom: 0;
 }
+
+/* Tool Message Styles */
+.tool-message {
+  max-width: 80%;
+  align-self: flex-start;
+  margin: 8px 0;
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background-color: #2d2d30;
+  border-radius: 6px;
+  border-left: 3px solid #0e639c;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.tool-header:hover {
+  background-color: #353538;
+}
+
+.tool-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tool-summary {
+  flex: 1;
+  font-size: 13px;
+  color: #cccccc;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.expand-icon {
+  font-size: 10px;
+  color: #858585;
+  flex-shrink: 0;
+}
+
+.tool-details {
+  margin-top: 4px;
+  padding: 12px 14px;
+  background-color: #1e1e1e;
+  border-radius: 6px;
+  border-left: 3px solid #0e639c;
+  font-size: 13px;
+  color: #d4d4d4;
+}
+
+.tool-detail-section {
+  margin-bottom: 12px;
+}
+
+.tool-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.tool-detail-section strong {
+  color: #858585;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.file-link {
+  color: #4fc3f7;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.file-link:hover {
+  color: #81d4fa;
+}
+
+.tool-input, .output-content, .error-content {
+  background-color: #0d0d0d;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.error-content {
+  color: #f48771;
+  border-left: 2px solid #d44;
+}
+
+.output-content {
+  color: #d4d4d4;
+}
+
+/* Tool-specific styling */
+.tool-use-message .tool-header {
+  border-left-color: #4fc3f7;
+}
+
+.tool-result-message .tool-header {
+  border-left-color: #81c784;
+}
+
+.tool-result-message.has-error .tool-header {
+  border-left-color: #d44;
+}
+
+.thinking-message .tool-header {
+  border-left-color: #ba68c8;
+}
+
+.error-message .tool-header {
+  border-left-color: #d44;
+  background-color: #3a2020;
+}
+
+.error-message .tool-summary {
+  color: #faa;
+}
+
+.error-detail-section .stack-trace {
+  margin-top: 10px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.error-detail-section .stack-trace strong {
+  margin-bottom: 4px;
+}
+
+.thinking-content {
+  color: #d4d4d4;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}

@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 
+export type MessageType = 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'thinking' | 'error';
+
 interface Message {
   id?: number;
   conversationId?: string;
@@ -7,6 +9,8 @@ interface Message {
   content: string;
   attachments?: string[];
   timestamp?: number;
+  messageType?: MessageType;
+  metadata?: any;
 }
 
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
@@ -83,6 +87,26 @@ export class ConversationManager {
       console.error('Error during database migration:', error);
     }
 
+    // Migrate messages table to add message_type and metadata columns
+    try {
+      const messageTableInfo = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
+      const hasMessageType = messageTableInfo.some(col => col.name === 'message_type');
+      const hasMetadata = messageTableInfo.some(col => col.name === 'metadata');
+
+      if (!hasMessageType) {
+        // Add message_type column with default based on role
+        this.db.exec('ALTER TABLE messages ADD COLUMN message_type TEXT');
+        // Set message_type based on role for existing messages
+        this.db.exec("UPDATE messages SET message_type = role WHERE message_type IS NULL");
+      }
+
+      if (!hasMetadata) {
+        this.db.exec('ALTER TABLE messages ADD COLUMN metadata TEXT');
+      }
+    } catch (error) {
+      console.error('Error during messages table migration:', error);
+    }
+
     // Create messages table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS messages (
@@ -92,6 +116,8 @@ export class ConversationManager {
         content TEXT NOT NULL,
         attachments TEXT,
         timestamp INTEGER NOT NULL,
+        message_type TEXT DEFAULT 'assistant',
+        metadata TEXT,
         FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
       )
     `);
@@ -145,16 +171,20 @@ export class ConversationManager {
 
     const timestamp = Date.now();
     const attachmentsJson = message.attachments ? JSON.stringify(message.attachments) : null;
+    const messageType = message.messageType || message.role; // Default to role if not specified
+    const metadataJson = message.metadata ? JSON.stringify(message.metadata) : null;
 
     const result = this.db.prepare(`
-      INSERT INTO messages (conversation_id, role, content, attachments, timestamp)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO messages (conversation_id, role, content, attachments, timestamp, message_type, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       targetConversationId,
       message.role,
       message.content,
       attachmentsJson,
-      timestamp
+      timestamp,
+      messageType,
+      metadataJson
     );
 
     // Update conversation's updated_at timestamp
@@ -273,6 +303,8 @@ export class ConversationManager {
         content: msg.content,
         attachments: msg.attachments ? JSON.parse(msg.attachments) : undefined,
         timestamp: msg.timestamp,
+        messageType: (msg.message_type as MessageType) || msg.role,
+        metadata: msg.metadata ? JSON.parse(msg.metadata) : undefined,
       })),
       totalMessageCount: totalCount.count,
     };

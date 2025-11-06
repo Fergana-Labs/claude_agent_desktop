@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Conversation, ToolExecution, PermissionRequest, PermissionMode } from '../types';
+import { ToolUseMessage } from './ToolUseMessage';
+import { ToolResultMessage } from './ToolResultMessage';
+import { ThinkingMessage } from './ThinkingMessage';
+import { ErrorMessage } from './ErrorMessage';
 import './ChatArea.css';
 
 interface ChatAreaProps {
@@ -144,12 +148,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     const removeProcessingCompleteListener = window.electron.onProcessingComplete((data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => {
       // Clear loading state for the conversation that completed processing
       conversationLoadingRef.current.set(data.conversationId, false);
-      conversationStreamingRef.current.set(data.conversationId, '');
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
         setIsLoading(false);
-        setStreamingContent('');
+        // Don't clear streaming content yet - wait for the saved message to load
+        // The content will be cleared when conversation reloads with the new message
       }
     });
 
@@ -244,6 +248,19 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     loadMode();
   }, [conversation]);
+
+  // Clear streaming content when new messages arrive (saved messages loaded from DB)
+  useEffect(() => {
+    if (conversation?.id && conversation.messages.length > 0) {
+      // If we have messages loaded and streaming content exists, clear it
+      // This ensures saved messages from DB replace the streaming content
+      const hasStreamingContent = conversationStreamingRef.current.get(conversation.id);
+      if (hasStreamingContent && !isLoading) {
+        conversationStreamingRef.current.set(conversation.id, '');
+        setStreamingContent('');
+      }
+    }
+  }, [conversation?.messages.length, conversation?.id, isLoading]);
 
   // Instantly scroll to bottom when conversation changes (no animation)
   useEffect(() => {
@@ -623,23 +640,46 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             Loading older messages...
           </div>
         )}
-        {conversation?.messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.role}`}>
-            <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
-            <div className="message-content">
-              {msg.attachments && msg.attachments.length > 0 && (
-                <div className="message-attachments">
-                  {msg.attachments.map((file, i) => (
-                    <div key={i} className="attachment-badge">
-                      📎 {file.split('/').pop()}
-                    </div>
-                  ))}
+        {conversation?.messages.map((msg, index) => {
+          const messageType = msg.messageType || msg.role;
+
+          // Render different components based on message type
+          switch (messageType) {
+            case 'tool_use':
+              return <ToolUseMessage key={index} message={msg} />;
+
+            case 'tool_result':
+              return <ToolResultMessage key={index} message={msg} />;
+
+            case 'thinking':
+              return <ThinkingMessage key={index} message={msg} />;
+
+            case 'error':
+              return <ErrorMessage key={index} message={msg} />;
+
+            case 'user':
+            case 'assistant':
+            default:
+              // Regular user/assistant messages
+              return (
+                <div key={index} className={`message ${msg.role}`}>
+                  <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
+                  <div className="message-content">
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="message-attachments">
+                        {msg.attachments.map((file, i) => (
+                          <div key={i} className="attachment-badge">
+                            📎 {file.split('/').pop()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
                 </div>
-              )}
-              <ReactMarkdown>{msg.content}</ReactMarkdown>
-            </div>
-          </div>
-        ))}
+              );
+          }
+        })}
 
         {streamingContent && (
           <div className="message assistant streaming">
