@@ -18,6 +18,7 @@ interface Conversation {
   updatedAt: number;
   projectPath?: string;
   sessionId?: string;
+  parentSessionId?: string;
   mode?: PermissionMode;
   messages: Message[];
   totalMessageCount?: number;
@@ -55,6 +56,7 @@ export class ConversationManager {
       const hasSessionId = tableInfo.some(col => col.name === 'session_id');
       const hasMode = tableInfo.some(col => col.name === 'mode');
       const hasLastUserMessageAt = tableInfo.some(col => col.name === 'last_user_message_at');
+      const hasParentSessionId = tableInfo.some(col => col.name === 'parent_session_id');
 
       if (!hasProjectPath) {
         this.db.exec('ALTER TABLE conversations ADD COLUMN project_path TEXT');
@@ -72,6 +74,10 @@ export class ConversationManager {
         this.db.exec('ALTER TABLE conversations ADD COLUMN last_user_message_at INTEGER');
         // Initialize last_user_message_at with updated_at for existing conversations
         this.db.exec('UPDATE conversations SET last_user_message_at = updated_at WHERE last_user_message_at IS NULL');
+      }
+
+      if (!hasParentSessionId) {
+        this.db.exec('ALTER TABLE conversations ADD COLUMN parent_session_id TEXT');
       }
     } catch (error) {
       console.error('Error during database migration:', error);
@@ -205,6 +211,7 @@ export class ConversationManager {
       updatedAt: conv.updated_at,
       projectPath: conv.project_path || undefined,
       sessionId: conv.session_id || undefined,
+      parentSessionId: conv.parent_session_id || undefined,
       mode: (conv.mode as PermissionMode) || 'default',
       messages: [],
     }));
@@ -257,6 +264,7 @@ export class ConversationManager {
       updatedAt: conversation.updated_at,
       projectPath: conversation.project_path || undefined,
       sessionId: conversation.session_id || undefined,
+      parentSessionId: conversation.parent_session_id || undefined,
       mode: (conversation.mode as PermissionMode) || 'default',
       messages: messages.map(msg => ({
         id: msg.id,
@@ -309,6 +317,69 @@ export class ConversationManager {
     if (this.currentConversationId === conversationId) {
       this.currentConversationId = null;
     }
+  }
+
+  async forkConversation(conversationId: string): Promise<Conversation> {
+    // Get the parent conversation
+    const parentConversation = await this.getConversation(conversationId);
+
+    if (!parentConversation) {
+      throw new Error(`Conversation ${conversationId} not found`);
+    }
+
+    // Create new conversation with same properties
+    const newId = this.generateId();
+    const now = Date.now();
+
+    // Insert new conversation with parent's sessionId as parent_session_id
+    this.db.prepare(`
+      INSERT INTO conversations (
+        id, title, created_at, updated_at, last_user_message_at,
+        project_path, mode, parent_session_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      newId,
+      parentConversation.title + ' (fork)',
+      now,
+      now,
+      now,
+      parentConversation.projectPath || null,
+      parentConversation.mode || 'default',
+      parentConversation.sessionId || null
+    );
+
+    // Copy all messages from parent conversation
+    const messages = this.db.prepare(`
+      SELECT role, content, attachments, timestamp
+      FROM messages
+      WHERE conversation_id = ?
+      ORDER BY timestamp ASC
+    `).all(conversationId) as any[];
+
+    const insertMessage = this.db.prepare(`
+      INSERT INTO messages (conversation_id, role, content, attachments, timestamp)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    for (const msg of messages) {
+      insertMessage.run(
+        newId,
+        msg.role,
+        msg.content,
+        msg.attachments,
+        msg.timestamp
+      );
+    }
+
+    // Return the complete forked conversation
+    const forkedConversation = await this.getConversation(newId);
+
+    if (!forkedConversation) {
+      throw new Error('Failed to create forked conversation');
+    }
+
+    return forkedConversation;
   }
 
   private generateId(): string {

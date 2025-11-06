@@ -31,6 +31,7 @@ interface ClaudeAgentConfig {
   pluginsPath: string;
   projectPath?: string;
   sessionId?: string | null;
+  parentSessionId?: string | null;
   mode?: PermissionMode;
 }
 
@@ -108,6 +109,9 @@ export class ClaudeAgent extends EventEmitter {
       try {
         const projectPath = this.config.projectPath || process.cwd();
 
+        // Check if this is the first message of a forked conversation
+        const isFork = this.config.parentSessionId && !this.currentSessionId;
+
         const options: Options = {
           model: 'claude-sonnet-4-5-20250929',
           maxThinkingTokens: 10000,
@@ -118,7 +122,8 @@ export class ClaudeAgent extends EventEmitter {
           plugins: [
             { type: 'local', path: this.config.pluginsPath }
           ],
-          resume: this.currentSessionId || undefined,
+          resume: isFork ? (this.config.parentSessionId || undefined) : (this.currentSessionId || undefined),
+          forkSession: isFork || undefined,
           env: {
             PATH: process.env.PATH,
             ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -131,6 +136,8 @@ export class ClaudeAgent extends EventEmitter {
           cwd: options.cwd,
           plugins: options.plugins,
           resume: options.resume,
+          forkSession: options.forkSession,
+          isFork,
           hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
           messageQueueLength: this.messageQueue.length,
           processingAttempt: this.processingAttempts,

@@ -16,6 +16,7 @@ export interface Conversation {
   updatedAt: number;
   projectPath?: string;
   sessionId?: string;
+  parentSessionId?: string;
   mode?: PermissionMode;
   messages: Message[];
   totalMessageCount?: number;

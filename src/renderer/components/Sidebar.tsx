@@ -9,6 +9,7 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
+  onForkConversation: (id: string) => void;
 }
 
 interface ConversationWithValidity extends Conversation {
@@ -22,8 +23,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onForkConversation,
 }) => {
   const [validatedConversations, setValidatedConversations] = useState<ConversationWithValidity[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ conversationId: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const validateFolders = async () => {
@@ -41,6 +44,15 @@ const Sidebar: React.FC<SidebarProps> = ({
 
     validateFolders();
   }, [conversations]);
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [contextMenu]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -64,6 +76,23 @@ const Sidebar: React.FC<SidebarProps> = ({
     onSelectConversation(conv.id);
   };
 
+  const handleContextMenu = (e: React.MouseEvent, conversationId: string) => {
+    e.preventDefault();
+    setContextMenu({ conversationId, x: e.clientX, y: e.clientY });
+  };
+
+  const handleFork = (conversationId: string) => {
+    setContextMenu(null);
+    onForkConversation(conversationId);
+  };
+
+  const handleDelete = (conversationId: string) => {
+    setContextMenu(null);
+    if (confirm('Delete this conversation?')) {
+      onDeleteConversation(conversationId);
+    }
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -79,6 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             key={conv.id}
             className={`conversation-item ${conv.id === currentConversationId ? 'active' : ''} ${!conv.folderExists && conv.projectPath ? 'invalid' : ''}`}
             onClick={() => handleConversationClick(conv)}
+            onContextMenu={(e) => handleContextMenu(e, conv.id)}
             style={{
               cursor: 'pointer'
             }}
@@ -116,20 +146,53 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
             </div>
-            <button
-              className="delete-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (confirm('Delete this conversation?')) {
-                  onDeleteConversation(conv.id);
-                }
-              }}
-            >
-              ×
-            </button>
           </div>
         ))}
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            background: '#2a2a2a',
+            border: '1px solid #444',
+            borderRadius: '4px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            zIndex: 1000,
+            minWidth: '150px'
+          }}
+        >
+          <div
+            onClick={() => handleFork(contextMenu.conversationId)}
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              color: '#fff',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            Fork Conversation
+          </div>
+          <div
+            onClick={() => handleDelete(contextMenu.conversationId)}
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              color: '#ff6b6b',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            Delete Conversation
+          </div>
+        </div>
+      )}
     </div>
   );
 };

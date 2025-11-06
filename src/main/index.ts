@@ -293,6 +293,22 @@ ipcMain.handle('delete-conversation', async (event, conversationId: string) => {
   return { success: true };
 });
 
+ipcMain.handle('fork-conversation', async (event, conversationId: string) => {
+  if (!conversationManager) {
+    throw new Error('Services not initialized');
+  }
+
+  // Fork the conversation (creates new conversation with copied messages and parent session ID)
+  const forkedConversation = await conversationManager.forkConversation(conversationId);
+
+  // Send event to refresh the conversations list
+  if (mainWindow) {
+    mainWindow.webContents.send('user-message-saved');
+  }
+
+  return forkedConversation;
+});
+
 ipcMain.handle('select-folder', async () => {
   if (!mainWindow) {
     throw new Error('Main window not initialized');

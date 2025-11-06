@@ -133,6 +133,20 @@ function App() {
     }
   };
 
+  const handleForkConversation = async (conversationId: string) => {
+    try {
+      const forkedConversation = await window.electron.forkConversation(conversationId);
+      await loadConversations();
+
+      // Auto-select the newly forked conversation
+      if (forkedConversation) {
+        await loadConversation(forkedConversation.id);
+      }
+    } catch (error) {
+      console.error('Error forking conversation:', error);
+    }
+  };
+
   if (!isElectronReady) {
     return (
       <div style={{
@@ -166,6 +180,7 @@ function App() {
         onSelectConversation={loadConversation}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
+        onForkConversation={handleForkConversation}
       />
       <ChatArea
         conversation={currentConversation}

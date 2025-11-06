@@ -54,6 +54,7 @@ export class ConversationAgentManager extends EventEmitter {
       conversationId,
       projectPath: conversation.projectPath,
       sessionId: conversation.sessionId,
+      parentSessionId: conversation.parentSessionId,
       mode: conversation.mode,
     });
 
@@ -63,6 +64,7 @@ export class ConversationAgentManager extends EventEmitter {
       pluginsPath: this.config.pluginsPath,
       projectPath: conversation.projectPath || process.cwd(),
       sessionId: conversation.sessionId || null,
+      parentSessionId: conversation.parentSessionId || null,
       mode: conversation.mode || 'default',
     });
 
