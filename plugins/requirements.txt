@@ -1,0 +1,18 @@
+# Core Office document manipulation
+python-pptx>=0.6.21
+openpyxl>=3.1.0
+pypdf>=3.17.0
+
+# XML processing and security
+defusedxml>=0.7.1
+lxml>=4.9.0
+
+# Image processing
+Pillow>=10.0.0
+pdf2image>=1.16.0
+
+# Document conversion
+markitdown>=0.0.1a2
+
+# Utilities
+six>=1.16.0

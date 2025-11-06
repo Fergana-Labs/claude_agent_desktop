@@ -59,7 +59,8 @@
     },
     "files": [
       "dist/**/*",
-      ".claude/**/*"
+      ".claude/**/*",
+      "plugins/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity"

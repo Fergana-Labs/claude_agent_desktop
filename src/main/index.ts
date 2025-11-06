@@ -86,9 +86,17 @@ app.whenReady().then(async () => {
   );
 
   // Initialize Claude Agent with default settings (will be updated per-conversation)
+  // Plugin path points to the project's plugins directory
+  const pluginsPath = path.join(__dirname, '../../plugins');
+  console.log('[Main] Initializing agent with plugins path:', pluginsPath);
+  console.log('[Main] Plugins directory exists:', existsSync(pluginsPath));
+  if (existsSync(pluginsPath)) {
+    const { readdirSync } = await import('fs');
+    console.log('[Main] Plugins directory contents:', readdirSync(pluginsPath));
+  }
   claudeAgent = new ClaudeAgent({
     apiKey: process.env.ANTHROPIC_API_KEY || '',
-    skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
+    pluginsPath: pluginsPath,
     projectPath: process.cwd(),
   });
 
@@ -249,9 +257,10 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
         // Reset the old agent before creating a new one
         await claudeAgent.reset();
 
+        const pluginsPath = path.join(__dirname, '../../plugins');
         claudeAgent = new ClaudeAgent({
           apiKey: process.env.ANTHROPIC_API_KEY || '',
-          skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
+          pluginsPath: pluginsPath,
           projectPath: conversation.projectPath,
         });
 
@@ -314,9 +323,10 @@ ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string)
   await claudeAgent.reset();
 
   // Initialize agent with the selected folder
+  const pluginsPath = path.join(__dirname, '../../plugins');
   claudeAgent = new ClaudeAgent({
     apiKey: process.env.ANTHROPIC_API_KEY || '',
-    skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
+    pluginsPath: pluginsPath,
     projectPath: folderPath,
   });
 

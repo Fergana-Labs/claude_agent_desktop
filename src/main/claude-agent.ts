@@ -28,7 +28,7 @@ interface PermissionRequest {
 
 interface ClaudeAgentConfig {
   apiKey: string;
-  skillsPath: string;
+  pluginsPath: string;
   projectPath?: string;
 }
 
@@ -80,6 +80,9 @@ export class ClaudeAgent extends EventEmitter {
         cwd: projectPath,
         settingSources: ['user', 'project'],
         allowedTools: ['Skill', 'Read', 'Write', 'Bash'],
+        plugins: [
+          { type: 'local', path: this.config.pluginsPath }
+        ],
         resume: this.currentSessionId || undefined,
         env: {
           PATH: process.env.PATH,
@@ -91,6 +94,7 @@ export class ClaudeAgent extends EventEmitter {
       console.log('[ClaudeAgent] Starting SDK query with options:', {
         model: options.model,
         cwd: options.cwd,
+        plugins: options.plugins,
         resume: options.resume,
         hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
         messageQueueLength: this.messageQueue.length,

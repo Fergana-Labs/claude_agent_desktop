@@ -1,0 +1,17 @@
+{
+  "name": "office-skills",
+  "version": "1.0.0",
+  "description": "Office document manipulation skills repository",
+  "type": "module",
+  "dependencies": {
+    "pptxgenjs": "^4.0.1",
+    "playwright": "^1.49.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.4.0",
+    "sharp": "^0.33.5"
+  },
+  "scripts": {
+    "postinstall": "playwright install chromium"
+  }
+}

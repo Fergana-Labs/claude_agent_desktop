@@ -1,0 +1,8 @@
+{
+  "name": "office-skills",
+  "version": "1.0.0",
+  "description": "Microsoft Office document workflows for Word, Excel, PowerPoint, and PDF",
+  "author": {
+    "name": "tfriedel"
+  }
+}
