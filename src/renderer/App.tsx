@@ -46,6 +46,11 @@ function App() {
       if (convos.length > 0 && !currentConversation) {
         loadConversation(convos[0].id);
       }
+
+      // If we have a current conversation, reload it to get updated messages
+      if (currentConversation) {
+        await loadConversation(currentConversation.id);
+      }
     } catch (error) {
       console.error('Error loading conversations:', error);
     }

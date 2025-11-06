@@ -107,26 +107,30 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handlers
-ipcMain.handle('send-message', async (event, message: string, attachments?: string[]) => {
+ipcMain.handle('send-message', async (event, message: string, conversationId: string, attachments?: string[]) => {
   if (!claudeAgent || !conversationManager || !mainWindow) {
     throw new Error('Agent not initialized');
   }
 
   try {
-    // Use the active conversation ID, not the manager's current one
-    if (!activeConversationId) {
-      throw new Error('No active conversation');
+    // Use the conversation ID passed from the frontend
+    // This prevents race conditions where activeConversationId changes
+    if (!conversationId) {
+      throw new Error('No conversation ID provided');
     }
 
-    // Save user message to the active conversation
+    // Verify the conversation exists
+    const conversation = await conversationManager.getConversation(conversationId);
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+
+    // Save user message to the specified conversation
     const messageId = await conversationManager.saveMessage({
       role: 'user',
       content: message,
       attachments,
-    }, activeConversationId);
-
-    // Store the conversation ID for this message send operation
-    const conversationId = activeConversationId;
+    }, conversationId);
 
     // Stream Claude's response
     let fullResponse = '';
@@ -163,16 +167,16 @@ ipcMain.handle('send-message', async (event, message: string, attachments?: stri
       },
     });
 
-    // Save assistant response to the active conversation
+    // Save assistant response to the specified conversation
     await conversationManager.saveMessage({
       role: 'assistant',
       content: fullResponse,
-    }, activeConversationId);
+    }, conversationId);
 
     // Save the session ID from this conversation
     const sessionId = claudeAgent.getCurrentSessionId();
     if (sessionId) {
-      await conversationManager.updateSessionId(activeConversationId, sessionId);
+      await conversationManager.updateSessionId(conversationId, sessionId);
     }
 
     return { success: true, messageId };
@@ -195,39 +199,40 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
   }
 
   try {
+    // Interrupt any in-flight operations before switching conversations
+    await claudeAgent.interrupt();
+
     // Set this as the active conversation
     activeConversationId = conversationId;
+    conversationManager.setCurrentConversationId(conversationId);
 
     const conversation = await conversationManager.getConversation(conversationId);
 
     if (conversation) {
-      // Load conversation-specific session ID
+      // Update agent's project path if conversation has one
+      if (conversation.projectPath) {
+        // Reset the old agent before creating a new one
+        await claudeAgent.reset();
+
+        claudeAgent = new ClaudeAgent({
+          apiKey: process.env.ANTHROPIC_API_KEY || '',
+          skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
+          projectPath: conversation.projectPath,
+        });
+      }
+
+      // Load conversation-specific session ID (on current agent)
       if (conversation.sessionId) {
         claudeAgent.setSessionId(conversation.sessionId);
       } else {
         claudeAgent.setSessionId(null);
       }
 
-      // Load conversation-specific mode
+      // Load conversation-specific mode (on current agent)
       if (conversation.mode) {
         claudeAgent.setMode(conversation.mode);
-      }
-
-      // Update agent's project path if conversation has one
-      if (conversation.projectPath) {
-        claudeAgent = new ClaudeAgent({
-          apiKey: process.env.ANTHROPIC_API_KEY || '',
-          skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
-          projectPath: conversation.projectPath,
-        });
-
-        // Restore session ID and mode after recreating agent
-        if (conversation.sessionId) {
-          claudeAgent.setSessionId(conversation.sessionId);
-        }
-        if (conversation.mode) {
-          claudeAgent.setMode(conversation.mode);
-        }
+      } else {
+        claudeAgent.setMode('default');
       }
     }
 
@@ -242,9 +247,14 @@ ipcMain.handle('new-conversation', async () => {
   if (!conversationManager || !claudeAgent) {
     throw new Error('Services not initialized');
   }
-  await conversationManager.newConversation();
+  const conversationId = await conversationManager.newConversation();
+
+  // Set as active conversation
+  activeConversationId = conversationId;
+  conversationManager.setCurrentConversationId(conversationId);
+
   await claudeAgent.reset();
-  return { success: true };
+  return { success: true, conversationId };
 });
 
 ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string) => {
@@ -257,6 +267,7 @@ ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string)
 
   // Set as active conversation
   activeConversationId = conversationId;
+  conversationManager.setCurrentConversationId(conversationId);
 
   // Set the folder path for this conversation
   await conversationManager.updateProjectPath(conversationId, folderPath);
@@ -306,12 +317,11 @@ ipcMain.handle('get-project-path', async () => {
     throw new Error('Conversation manager not initialized');
   }
 
-  const currentConversationId = conversationManager.getCurrentConversationId();
-  if (!currentConversationId) {
+  if (!activeConversationId) {
     return { path: '' };
   }
 
-  const conversation = await conversationManager.getConversation(currentConversationId);
+  const conversation = await conversationManager.getConversation(activeConversationId);
   return { path: conversation?.projectPath || '' };
 });
 
@@ -353,8 +363,7 @@ ipcMain.handle('set-mode', async (event, mode: string) => {
     throw new Error('Services not initialized');
   }
 
-  const currentConversationId = conversationManager.getCurrentConversationId();
-  if (!currentConversationId) {
+  if (!activeConversationId) {
     throw new Error('No active conversation');
   }
 
@@ -362,7 +371,7 @@ ipcMain.handle('set-mode', async (event, mode: string) => {
   claudeAgent.setMode(mode as any);
 
   // Save mode to conversation
-  await conversationManager.updateMode(currentConversationId, mode as any);
+  await conversationManager.updateMode(activeConversationId, mode as any);
 
   return { success: true };
 });

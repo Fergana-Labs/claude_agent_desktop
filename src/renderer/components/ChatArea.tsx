@@ -112,7 +112,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       removePermissionListener();
       removeInterruptListener();
     };
-  }, []);
+  }, [conversation]);
 
   useEffect(() => {
     scrollToBottom();
@@ -149,6 +149,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       setActiveTool(savedTool);
       setPermissionRequests(savedPermissions);
     } else {
+      // Clear all state when no conversation
       setInput('');
       setAttachedFiles([]);
       setIsLoading(false);
@@ -222,7 +223,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
     onMessageSent();
 
     try {
-      await window.electron.sendMessage(messageContent, messageAttachments);
+      await window.electron.sendMessage(messageContent, conversationId, messageAttachments);
       // Refresh again after response is complete
       onMessageSent();
     } catch (error) {

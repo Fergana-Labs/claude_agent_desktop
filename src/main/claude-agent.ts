@@ -226,9 +226,15 @@ export class ClaudeAgent extends EventEmitter {
   setMode(mode: PermissionMode): void {
     this.mode = mode;
 
-    // Update current query if running
-    if (this.currentQuery) {
-      this.currentQuery.setPermissionMode(mode);
+    // Update current query if running and processing
+    // Only update if the query is still active to prevent "write after end" errors
+    if (this.currentQuery && this.isProcessing) {
+      try {
+        this.currentQuery.setPermissionMode(mode);
+      } catch (error) {
+        // Ignore errors if the query has already ended
+        console.warn('Failed to set permission mode on current query:', error);
+      }
     }
   }
 

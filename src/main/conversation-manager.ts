@@ -41,7 +41,8 @@ export class ConversationManager {
         updated_at INTEGER NOT NULL,
         project_path TEXT,
         session_id TEXT,
-        mode TEXT DEFAULT 'default'
+        mode TEXT DEFAULT 'default',
+        last_user_message_at INTEGER
       )
     `);
 
@@ -52,6 +53,7 @@ export class ConversationManager {
       const hasProjectPath = tableInfo.some(col => col.name === 'project_path');
       const hasSessionId = tableInfo.some(col => col.name === 'session_id');
       const hasMode = tableInfo.some(col => col.name === 'mode');
+      const hasLastUserMessageAt = tableInfo.some(col => col.name === 'last_user_message_at');
 
       if (!hasProjectPath) {
         this.db.exec('ALTER TABLE conversations ADD COLUMN project_path TEXT');
@@ -63,6 +65,12 @@ export class ConversationManager {
 
       if (!hasMode) {
         this.db.exec("ALTER TABLE conversations ADD COLUMN mode TEXT DEFAULT 'default'");
+      }
+
+      if (!hasLastUserMessageAt) {
+        this.db.exec('ALTER TABLE conversations ADD COLUMN last_user_message_at INTEGER');
+        // Initialize last_user_message_at with updated_at for existing conversations
+        this.db.exec('UPDATE conversations SET last_user_message_at = updated_at WHERE last_user_message_at IS NULL');
       }
     } catch (error) {
       console.error('Error during database migration:', error);
@@ -143,15 +151,23 @@ export class ConversationManager {
     );
 
     // Update conversation's updated_at timestamp
-    this.db.prepare(`
-      UPDATE conversations
-      SET updated_at = ?
-      WHERE id = ?
-    `).run(timestamp, targetConversationId);
-
-    // Auto-generate title from first user message
+    // If this is a user message, also update last_user_message_at for sidebar sorting
     if (message.role === 'user') {
+      this.db.prepare(`
+        UPDATE conversations
+        SET updated_at = ?, last_user_message_at = ?
+        WHERE id = ?
+      `).run(timestamp, timestamp, targetConversationId);
+
+      // Auto-generate title from first user message
       this.updateConversationTitle(targetConversationId, message.content);
+    } else {
+      // For assistant messages, only update updated_at
+      this.db.prepare(`
+        UPDATE conversations
+        SET updated_at = ?
+        WHERE id = ?
+      `).run(timestamp, targetConversationId);
     }
 
     return result.lastInsertRowid as number;
@@ -178,7 +194,7 @@ export class ConversationManager {
   async getConversations(): Promise<Conversation[]> {
     const conversations = this.db.prepare(`
       SELECT * FROM conversations
-      ORDER BY updated_at DESC
+      ORDER BY last_user_message_at DESC
     `).all() as any[];
 
     return conversations.map(conv => ({
@@ -254,6 +270,10 @@ export class ConversationManager {
 
   getCurrentConversationId(): string | null {
     return this.currentConversationId;
+  }
+
+  setCurrentConversationId(conversationId: string | null): void {
+    this.currentConversationId = conversationId;
   }
 
   async deleteConversation(conversationId: string): Promise<void> {

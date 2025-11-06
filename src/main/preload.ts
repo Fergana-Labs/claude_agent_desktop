@@ -4,19 +4,19 @@ import { contextBridge, ipcRenderer } from 'electron';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electron', {
   // Send a message to Claude
-  sendMessage: (message: string, attachments?: string[]) =>
-    ipcRenderer.invoke('send-message', message, attachments),
+  sendMessage: (message: string, conversationId: string, attachments?: string[]) =>
+    ipcRenderer.invoke('send-message', message, conversationId, attachments),
 
   // Listen for streaming tokens
-  onMessageToken: (callback: (token: string) => void) => {
-    const subscription = (_event: any, token: string) => callback(token);
+  onMessageToken: (callback: (data: { token: string; conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { token: string; conversationId: string }) => callback(data);
     ipcRenderer.on('message-token', subscription);
     return () => ipcRenderer.removeListener('message-token', subscription);
   },
 
   // Listen for thinking tokens
-  onMessageThinking: (callback: (thinking: string) => void) => {
-    const subscription = (_event: any, thinking: string) => callback(thinking);
+  onMessageThinking: (callback: (data: { thinking: string; conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { thinking: string; conversationId: string }) => callback(data);
     ipcRenderer.on('message-thinking', subscription);
     return () => ipcRenderer.removeListener('message-thinking', subscription);
   },
@@ -36,8 +36,8 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // Listen for message interruptions
-  onMessageInterrupted: (callback: () => void) => {
-    const subscription = (_event: any) => callback();
+  onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
     ipcRenderer.on('message-interrupted', subscription);
     return () => ipcRenderer.removeListener('message-interrupted', subscription);
   },
@@ -72,12 +72,12 @@ contextBridge.exposeInMainWorld('electron', {
 
 // Type definitions for TypeScript
 export interface ElectronAPI {
-  sendMessage: (message: string, attachments?: string[]) => Promise<{ success: boolean; messageId: number }>;
-  onMessageToken: (callback: (token: string) => void) => () => void;
-  onMessageThinking: (callback: (thinking: string) => void) => () => void;
+  sendMessage: (message: string, conversationId: string, attachments?: string[]) => Promise<{ success: boolean; messageId: number }>;
+  onMessageToken: (callback: (data: { token: string; conversationId: string }) => void) => () => void;
+  onMessageThinking: (callback: (data: { thinking: string; conversationId: string }) => void) => () => void;
   onToolExecution: (callback: (data: any) => void) => () => void;
   onPermissionRequest: (callback: (request: any) => void) => () => void;
-  onMessageInterrupted: (callback: () => void) => () => void;
+  onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
   getConversation: (conversationId: string) => Promise<any>;
   newConversation: () => Promise<{ success: boolean }>;
