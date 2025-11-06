@@ -152,6 +152,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       attachments,
     }, conversationId);
 
+    // Notify frontend that user message was saved (triggers conversation refresh and sidebar reorder)
+    mainWindow?.webContents.send('user-message-saved', { conversationId });
+
     // Stream Claude's response via the agent manager
     let fullResponse = '';
 

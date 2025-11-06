@@ -115,9 +115,9 @@ export class ConversationManager {
     const now = Date.now();
 
     this.db.prepare(`
-      INSERT INTO conversations (id, title, created_at, updated_at)
-      VALUES (?, ?, ?, ?)
-    `).run(id, 'New Conversation', now, now);
+      INSERT INTO conversations (id, title, created_at, updated_at, last_user_message_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, 'New Conversation', now, now, now);
 
     this.currentConversationId = id;
     return id;
@@ -194,7 +194,7 @@ export class ConversationManager {
   async getConversations(): Promise<Conversation[]> {
     const conversations = this.db.prepare(`
       SELECT * FROM conversations
-      ORDER BY last_user_message_at DESC
+      ORDER BY COALESCE(last_user_message_at, updated_at, created_at) DESC
     `).all() as any[];
 
     return conversations.map(conv => ({

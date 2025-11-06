@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('message-interrupted', subscription);
   },
 
+  // Listen for user message saved event (triggers conversation refresh and sidebar reorder)
+  onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
+    ipcRenderer.on('user-message-saved', subscription);
+    return () => ipcRenderer.removeListener('user-message-saved', subscription);
+  },
+
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
@@ -78,6 +85,7 @@ export interface ElectronAPI {
   onToolExecution: (callback: (data: any) => void) => () => void;
   onPermissionRequest: (callback: (request: any) => void) => () => void;
   onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => () => void;
+  onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
   getConversation: (conversationId: string) => Promise<any>;
   newConversation: () => Promise<{ success: boolean }>;

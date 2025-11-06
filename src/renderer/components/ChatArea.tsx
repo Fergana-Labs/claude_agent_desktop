@@ -101,6 +101,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       }
     });
 
+    // Set up user message saved listener (triggers immediate conversation refresh and sidebar reorder)
+    const removeUserMessageSavedListener = window.electron.onUserMessageSaved((data: { conversationId: string }) => {
+      // Refresh conversation list to show the user's message and update sidebar sort order
+      onMessageSent();
+    });
+
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -111,6 +117,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       removeToolListener();
       removePermissionListener();
       removeInterruptListener();
+      removeUserMessageSavedListener();
     };
   }, [conversation]);
 
@@ -220,12 +227,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
     setIsLoading(true);
     setStreamingContent('');
 
-    // Refresh conversation to show the user's message immediately
-    onMessageSent();
-
     try {
       await window.electron.sendMessage(messageContent, conversationId, messageAttachments);
-      // Refresh again after response is complete
+      // Refresh conversation list after message is sent (this will update the sort order)
       onMessageSent();
     } catch (error) {
       console.error('Error sending message:', error);

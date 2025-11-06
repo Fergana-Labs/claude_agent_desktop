@@ -124,6 +124,7 @@ function App() {
         isOpen={showFolderModal}
         onConfirm={handleFolderSelected}
         onCancel={handleFolderModalCancel}
+        defaultFolder={currentConversation?.projectPath}
       />
       <Sidebar
         conversations={conversations}
