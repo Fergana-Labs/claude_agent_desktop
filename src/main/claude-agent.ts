@@ -220,6 +220,9 @@ export class ClaudeAgent extends EventEmitter {
     if (this.currentQuery && this.isProcessing) {
       this.currentQuery.interrupt();
     }
+    // Clear the query reference and processing flag to prevent dangling references
+    this.currentQuery = null;
+    this.isProcessing = false;
   }
 
   // Set the permission mode
@@ -243,7 +246,13 @@ export class ClaudeAgent extends EventEmitter {
   }
 
   async reset(): Promise<void> {
-    // Clear session ID to start a new conversation
+    // Interrupt any active query first
+    if (this.currentQuery && this.isProcessing) {
+      this.currentQuery.interrupt();
+    }
+
+    // Clear all state
+    this.currentQuery = null;
     this.currentSessionId = null;
     this.mode = 'default';
     this.messageQueue = [];
