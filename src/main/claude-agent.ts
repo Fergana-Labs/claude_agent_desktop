@@ -30,6 +30,8 @@ interface ClaudeAgentConfig {
   apiKey: string;
   pluginsPath: string;
   projectPath?: string;
+  sessionId?: string | null;
+  mode?: PermissionMode;
 }
 
 interface QueuedMessage {
@@ -49,6 +51,16 @@ export class ClaudeAgent extends EventEmitter {
   constructor(config: ClaudeAgentConfig) {
     super();
     this.config = config;
+
+    // Initialize session ID and mode from config (for session restoration)
+    this.currentSessionId = config.sessionId || null;
+    this.mode = config.mode || 'default';
+
+    console.log('[ClaudeAgent] Initialized with:', {
+      projectPath: config.projectPath,
+      sessionId: this.currentSessionId,
+      mode: this.mode,
+    });
   }
 
   // Queue a message for processing
@@ -268,26 +280,8 @@ export class ClaudeAgent extends EventEmitter {
     return this.mode;
   }
 
-  async reset(): Promise<void> {
-    // Interrupt any active query first
-    if (this.currentQuery && this.isProcessing) {
-      await this.currentQuery.interrupt();
-    }
-
-    // Clear all state
-    this.currentQuery = null;
-    this.currentSessionId = null;
-    this.mode = 'default';
-    this.messageQueue = [];
-    this.isProcessing = false;
-  }
-
   getCurrentSessionId(): string | null {
     return this.currentSessionId;
-  }
-
-  setSessionId(sessionId: string | null): void {
-    this.currentSessionId = sessionId;
   }
 
   // Permission methods - handled by SDK mode

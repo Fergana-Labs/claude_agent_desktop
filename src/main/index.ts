@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { config as loadEnv } from 'dotenv';
 import { existsSync, mkdirSync } from 'fs';
-import { ClaudeAgent } from './claude-agent.js';
+import { ConversationAgentManager } from './conversation-agent-manager.js';
 import { ConversationManager } from './conversation-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,10 +33,8 @@ if (process.platform === 'darwin' || process.platform === 'linux') {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let claudeAgent: ClaudeAgent | null = null;
+let agentManager: ConversationAgentManager | null = null;
 let conversationManager: ConversationManager | null = null;
-let activeConversationId: string | null = null;
-let currentProjectPath: string | null = null;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -85,20 +83,22 @@ app.whenReady().then(async () => {
     path.join(app.getPath('userData'), 'conversations.db')
   );
 
-  // Initialize Claude Agent with default settings (will be updated per-conversation)
-  // Plugin path points to the project's plugins directory
+  // Initialize Agent Manager
   const pluginsPath = path.join(__dirname, '../../plugins');
-  console.log('[Main] Initializing agent with plugins path:', pluginsPath);
+  console.log('[Main] Initializing agent manager with plugins path:', pluginsPath);
   console.log('[Main] Plugins directory exists:', existsSync(pluginsPath));
   if (existsSync(pluginsPath)) {
     const { readdirSync } = await import('fs');
     console.log('[Main] Plugins directory contents:', readdirSync(pluginsPath));
   }
-  claudeAgent = new ClaudeAgent({
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-    pluginsPath: pluginsPath,
-    projectPath: process.cwd(),
-  });
+
+  agentManager = new ConversationAgentManager(
+    {
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+      pluginsPath: pluginsPath,
+    },
+    conversationManager
+  );
 
   createWindow();
 
@@ -109,7 +109,12 @@ app.whenReady().then(async () => {
   });
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  // Cleanup all agents before quitting
+  if (agentManager) {
+    await agentManager.cleanup();
+  }
+
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -117,13 +122,11 @@ app.on('window-all-closed', () => {
 
 // IPC Handlers
 ipcMain.handle('send-message', async (event, message: string, conversationId: string, attachments?: string[]) => {
-  if (!claudeAgent || !conversationManager || !mainWindow) {
-    throw new Error('Agent not initialized');
+  if (!agentManager || !conversationManager || !mainWindow) {
+    throw new Error('Services not initialized');
   }
 
   try {
-    // Use the conversation ID passed from the frontend
-    // This prevents race conditions where activeConversationId changes
     if (!conversationId) {
       throw new Error('No conversation ID provided');
     }
@@ -149,10 +152,10 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       attachments,
     }, conversationId);
 
-    // Stream Claude's response
+    // Stream Claude's response via the agent manager
     let fullResponse = '';
 
-    await claudeAgent.sendMessage(message, attachments, {
+    await agentManager.sendMessage(conversationId, message, attachments, {
       onToken: (token: string) => {
         fullResponse += token;
         mainWindow?.webContents.send('message-token', { token, conversationId });
@@ -190,18 +193,11 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       content: fullResponse,
     }, conversationId);
 
-    // Save the session ID only if this conversation doesn't already have one
-    // This prevents overwriting a conversation's sessionId with another conversation's session
-    const newSessionId = claudeAgent.getCurrentSessionId();
-    if (newSessionId && !conversation.sessionId) {
-      console.log('[send-message] Saving new sessionId for conversation:', conversationId);
+    // Update session ID in database if it changed
+    const newSessionId = agentManager.getCurrentSessionId(conversationId);
+    if (newSessionId && newSessionId !== conversation.sessionId) {
+      console.log('[send-message] Updating sessionId for conversation:', conversationId);
       await conversationManager.updateSessionId(conversationId, newSessionId);
-    } else if (newSessionId && conversation.sessionId && newSessionId !== conversation.sessionId) {
-      console.warn('[send-message] Agent has different sessionId than conversation, NOT overwriting:', {
-        conversationId,
-        conversationSessionId: conversation.sessionId,
-        agentSessionId: newSessionId,
-      });
     }
 
     return { success: true, messageId };
@@ -219,17 +215,17 @@ ipcMain.handle('get-conversations', async () => {
 });
 
 ipcMain.handle('get-conversation', async (event, conversationId: string) => {
-  if (!conversationManager || !claudeAgent) {
+  if (!conversationManager) {
     throw new Error('Services not initialized');
   }
 
   try {
     console.log('[get-conversation] Loading conversation:', conversationId);
 
-    // Set this as the active conversation
-    activeConversationId = conversationId;
+    // Set this as the active conversation for the conversation manager
     conversationManager.setCurrentConversationId(conversationId);
 
+    // Simply return the conversation - the agent will be created on-demand when needed
     const conversation = await conversationManager.getConversation(conversationId);
 
     if (conversation) {
@@ -238,49 +234,7 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
         projectPath: conversation.projectPath,
         sessionId: conversation.sessionId,
         mode: conversation.mode,
-        currentProjectPath: currentProjectPath,
       });
-
-      // Only recreate agent if project path actually changed
-      const needsRecreation = conversation.projectPath &&
-                              conversation.projectPath !== currentProjectPath;
-
-      if (needsRecreation) {
-        console.log('[get-conversation] Project path changed, recreating agent:', {
-          from: currentProjectPath,
-          to: conversation.projectPath,
-        });
-
-        // Interrupt any in-flight operations before recreating
-        await claudeAgent.interrupt();
-
-        // Reset the old agent before creating a new one
-        await claudeAgent.reset();
-
-        const pluginsPath = path.join(__dirname, '../../plugins');
-        claudeAgent = new ClaudeAgent({
-          apiKey: process.env.ANTHROPIC_API_KEY || '',
-          pluginsPath: pluginsPath,
-          projectPath: conversation.projectPath,
-        });
-
-        currentProjectPath = conversation.projectPath || null;
-      } else {
-        console.log('[get-conversation] Using existing agent, no recreation needed');
-      }
-
-      // Always start with a fresh session for each conversation load
-      // This prevents issues with stale/corrupted sessionIds
-      // New sessionIds will be generated and saved on first message
-      claudeAgent.setSessionId(null);
-      console.log('[get-conversation] Starting fresh session (not restoring old sessionId)');
-
-      // Load conversation-specific mode (on current agent)
-      if (conversation.mode) {
-        claudeAgent.setMode(conversation.mode);
-      } else {
-        claudeAgent.setMode('default');
-      }
     }
 
     return conversation;
@@ -291,21 +245,20 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
 });
 
 ipcMain.handle('new-conversation', async () => {
-  if (!conversationManager || !claudeAgent) {
+  if (!conversationManager) {
     throw new Error('Services not initialized');
   }
   const conversationId = await conversationManager.newConversation();
 
   // Set as active conversation
-  activeConversationId = conversationId;
   conversationManager.setCurrentConversationId(conversationId);
 
-  await claudeAgent.reset();
+  // Agent will be created on-demand when first message is sent
   return { success: true, conversationId };
 });
 
 ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string) => {
-  if (!conversationManager || !claudeAgent) {
+  if (!conversationManager) {
     throw new Error('Services not initialized');
   }
 
@@ -313,31 +266,26 @@ ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string)
   const conversationId = await conversationManager.newConversation();
 
   // Set as active conversation
-  activeConversationId = conversationId;
   conversationManager.setCurrentConversationId(conversationId);
 
   // Set the folder path for this conversation
   await conversationManager.updateProjectPath(conversationId, folderPath);
 
-  // Reset agent session for new conversation
-  await claudeAgent.reset();
-
-  // Initialize agent with the selected folder
-  const pluginsPath = path.join(__dirname, '../../plugins');
-  claudeAgent = new ClaudeAgent({
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-    pluginsPath: pluginsPath,
-    projectPath: folderPath,
-  });
-
+  // Agent will be created on-demand with the correct project path
   return { success: true, conversationId };
 });
 
 ipcMain.handle('delete-conversation', async (event, conversationId: string) => {
-  if (!conversationManager) {
-    throw new Error('Conversation manager not initialized');
+  if (!conversationManager || !agentManager) {
+    throw new Error('Services not initialized');
   }
+
+  // Delete the agent instance for this conversation
+  await agentManager.deleteAgent(conversationId);
+
+  // Delete the conversation from database
   await conversationManager.deleteConversation(conversationId);
+
   return { success: true };
 });
 
@@ -397,17 +345,24 @@ ipcMain.handle('create-folder', async (event, parentPath: string, folderName: st
 });
 
 // Interrupt message processing
-ipcMain.handle('interrupt-message', async () => {
-  if (!claudeAgent) {
-    throw new Error('Agent not initialized');
+ipcMain.handle('interrupt-message', async (event, conversationId?: string) => {
+  if (!agentManager || !conversationManager) {
+    throw new Error('Services not initialized');
   }
-  await claudeAgent.interrupt();
+
+  // If no conversationId provided, use the current active conversation
+  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+  if (!targetConversationId) {
+    throw new Error('No active conversation to interrupt');
+  }
+
+  await agentManager.interrupt(targetConversationId);
   return { success: true };
 });
 
 // Set permission mode
 ipcMain.handle('set-mode', async (event, mode: string, conversationId: string) => {
-  if (!claudeAgent || !conversationManager) {
+  if (!agentManager || !conversationManager) {
     throw new Error('Services not initialized');
   }
 
@@ -415,10 +370,10 @@ ipcMain.handle('set-mode', async (event, mode: string, conversationId: string) =
     throw new Error('No conversation ID provided');
   }
 
-  // Update agent mode (for immediate effect if this is the active conversation)
-  claudeAgent.setMode(mode as any);
+  // Update agent mode (will get or create agent for this conversation)
+  await agentManager.setMode(conversationId, mode as any);
 
-  // Save mode to specific conversation
+  // Save mode to database
   await conversationManager.updateMode(conversationId, mode as any);
 
   return { success: true };
@@ -440,19 +395,33 @@ ipcMain.handle('get-mode', async (event, conversationId: string) => {
 });
 
 // Approve permission
-ipcMain.handle('approve-permission', async (event, permissionId: string) => {
-  if (!claudeAgent) {
-    throw new Error('Agent not initialized');
+ipcMain.handle('approve-permission', async (event, permissionId: string, conversationId?: string) => {
+  if (!agentManager || !conversationManager) {
+    throw new Error('Services not initialized');
   }
-  await claudeAgent.approvePermission(permissionId);
+
+  // If no conversationId provided, use the current active conversation
+  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+  if (!targetConversationId) {
+    throw new Error('No active conversation');
+  }
+
+  await agentManager.approvePermission(targetConversationId, permissionId);
   return { success: true };
 });
 
 // Deny permission
-ipcMain.handle('deny-permission', async (event, permissionId: string) => {
-  if (!claudeAgent) {
-    throw new Error('Agent not initialized');
+ipcMain.handle('deny-permission', async (event, permissionId: string, conversationId?: string) => {
+  if (!agentManager || !conversationManager) {
+    throw new Error('Services not initialized');
   }
-  await claudeAgent.denyPermission(permissionId);
+
+  // If no conversationId provided, use the current active conversation
+  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+  if (!targetConversationId) {
+    throw new Error('No active conversation');
+  }
+
+  await agentManager.denyPermission(targetConversationId, permissionId);
   return { success: true };
 });
