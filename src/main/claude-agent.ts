@@ -87,6 +87,15 @@ export class ClaudeAgent extends EventEmitter {
         },
       };
 
+      // Log SDK initialization details
+      console.log('[ClaudeAgent] Starting SDK query with options:', {
+        model: options.model,
+        cwd: options.cwd,
+        resume: options.resume,
+        hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
+        messageQueueLength: this.messageQueue.length,
+      });
+
       // Create async generator for messages
       const messageGenerator = this.createMessageGenerator();
 
@@ -102,6 +111,7 @@ export class ClaudeAgent extends EventEmitter {
       }
     } catch (error: any) {
       if (error.name === 'AbortError' || error.message?.includes('interrupt')) {
+        console.log('[ClaudeAgent] Query interrupted');
         // Notify all queued callbacks about interruption
         this.messageQueue.forEach(msg => {
           if (msg.callbacks.onInterrupted) {
@@ -109,7 +119,16 @@ export class ClaudeAgent extends EventEmitter {
           }
         });
       } else {
-        console.error('Error in processQueue:', error);
+        console.error('[ClaudeAgent] Error in processQueue:', {
+          errorName: error.name,
+          errorMessage: error.message,
+          errorStack: error.stack,
+          sessionId: this.currentSessionId,
+          projectPath: this.config.projectPath,
+          isProcessing: this.isProcessing,
+          queueLength: this.messageQueue.length,
+          mode: this.mode,
+        });
         throw error;
       }
     } finally {

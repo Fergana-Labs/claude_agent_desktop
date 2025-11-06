@@ -36,6 +36,7 @@ let mainWindow: BrowserWindow | null = null;
 let claudeAgent: ClaudeAgent | null = null;
 let conversationManager: ConversationManager | null = null;
 let activeConversationId: string | null = null;
+let currentProjectPath: string | null = null;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -125,6 +126,14 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       throw new Error('Conversation not found');
     }
 
+    console.log('[send-message] Processing message:', {
+      conversationId,
+      projectPath: conversation.projectPath,
+      sessionId: conversation.sessionId,
+      messagePreview: message.substring(0, 50),
+      hasAttachments: !!attachments?.length,
+    });
+
     // Save user message to the specified conversation
     const messageId = await conversationManager.saveMessage({
       role: 'user',
@@ -173,10 +182,18 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       content: fullResponse,
     }, conversationId);
 
-    // Save the session ID from this conversation
-    const sessionId = claudeAgent.getCurrentSessionId();
-    if (sessionId) {
-      await conversationManager.updateSessionId(conversationId, sessionId);
+    // Save the session ID only if this conversation doesn't already have one
+    // This prevents overwriting a conversation's sessionId with another conversation's session
+    const newSessionId = claudeAgent.getCurrentSessionId();
+    if (newSessionId && !conversation.sessionId) {
+      console.log('[send-message] Saving new sessionId for conversation:', conversationId);
+      await conversationManager.updateSessionId(conversationId, newSessionId);
+    } else if (newSessionId && conversation.sessionId && newSessionId !== conversation.sessionId) {
+      console.warn('[send-message] Agent has different sessionId than conversation, NOT overwriting:', {
+        conversationId,
+        conversationSessionId: conversation.sessionId,
+        agentSessionId: newSessionId,
+      });
     }
 
     return { success: true, messageId };
@@ -199,8 +216,7 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
   }
 
   try {
-    // Interrupt any in-flight operations before switching conversations
-    await claudeAgent.interrupt();
+    console.log('[get-conversation] Loading conversation:', conversationId);
 
     // Set this as the active conversation
     activeConversationId = conversationId;
@@ -209,8 +225,27 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
     const conversation = await conversationManager.getConversation(conversationId);
 
     if (conversation) {
-      // Update agent's project path if conversation has one
-      if (conversation.projectPath) {
+      console.log('[get-conversation] Conversation details:', {
+        id: conversation.id,
+        projectPath: conversation.projectPath,
+        sessionId: conversation.sessionId,
+        mode: conversation.mode,
+        currentProjectPath: currentProjectPath,
+      });
+
+      // Only recreate agent if project path actually changed
+      const needsRecreation = conversation.projectPath &&
+                              conversation.projectPath !== currentProjectPath;
+
+      if (needsRecreation) {
+        console.log('[get-conversation] Project path changed, recreating agent:', {
+          from: currentProjectPath,
+          to: conversation.projectPath,
+        });
+
+        // Interrupt any in-flight operations before recreating
+        await claudeAgent.interrupt();
+
         // Reset the old agent before creating a new one
         await claudeAgent.reset();
 
@@ -219,14 +254,17 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
           skillsPath: path.join(app.getPath('userData'), '.claude/skills'),
           projectPath: conversation.projectPath,
         });
+
+        currentProjectPath = conversation.projectPath || null;
+      } else {
+        console.log('[get-conversation] Using existing agent, no recreation needed');
       }
 
-      // Load conversation-specific session ID (on current agent)
-      if (conversation.sessionId) {
-        claudeAgent.setSessionId(conversation.sessionId);
-      } else {
-        claudeAgent.setSessionId(null);
-      }
+      // Always start with a fresh session for each conversation load
+      // This prevents issues with stale/corrupted sessionIds
+      // New sessionIds will be generated and saved on first message
+      claudeAgent.setSessionId(null);
+      console.log('[get-conversation] Starting fresh session (not restoring old sessionId)');
 
       // Load conversation-specific mode (on current agent)
       if (conversation.mode) {
