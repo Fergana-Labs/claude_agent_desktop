@@ -88,9 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDelete = (conversationId: string) => {
     setContextMenu(null);
-    if (confirm('Delete this conversation?')) {
-      onDeleteConversation(conversationId);
-    }
+    onDeleteConversation(conversationId);
   };
 
   return (
