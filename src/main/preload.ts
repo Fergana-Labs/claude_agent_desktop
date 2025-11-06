@@ -58,13 +58,13 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Folder selection
   selectFolder: () => ipcRenderer.invoke('select-folder'),
-  getProjectPath: () => ipcRenderer.invoke('get-project-path'),
+  getProjectPath: (conversationId: string) => ipcRenderer.invoke('get-project-path', conversationId),
   checkFolderExists: (folderPath: string) => ipcRenderer.invoke('check-folder-exists', folderPath),
   createFolder: (parentPath: string, folderName: string) => ipcRenderer.invoke('create-folder', parentPath, folderName),
 
   // Mode and permission management
-  setMode: (mode: string) => ipcRenderer.invoke('set-mode', mode),
-  getMode: () => ipcRenderer.invoke('get-mode'),
+  setMode: (mode: string, conversationId: string) => ipcRenderer.invoke('set-mode', mode, conversationId),
+  getMode: (conversationId: string) => ipcRenderer.invoke('get-mode', conversationId),
   interruptMessage: () => ipcRenderer.invoke('interrupt-message'),
   approvePermission: (permissionId: string) => ipcRenderer.invoke('approve-permission', permissionId),
   denyPermission: (permissionId: string) => ipcRenderer.invoke('deny-permission', permissionId),
@@ -84,11 +84,11 @@ export interface ElectronAPI {
   newConversationWithFolder: (folderPath: string) => Promise<{ success: boolean; conversationId: string }>;
   deleteConversation: (conversationId: string) => Promise<{ success: boolean }>;
   selectFolder: () => Promise<{ success: boolean; path?: string }>;
-  getProjectPath: () => Promise<{ path: string }>;
+  getProjectPath: (conversationId: string) => Promise<{ path: string }>;
   checkFolderExists: (folderPath: string) => Promise<{ exists: boolean }>;
   createFolder: (parentPath: string, folderName: string) => Promise<{ success: boolean; error?: string; path: string | null }>;
-  setMode: (mode: string) => Promise<{ success: boolean }>;
-  getMode: () => Promise<{ mode: string }>;
+  setMode: (mode: string, conversationId: string) => Promise<{ success: boolean }>;
+  getMode: (conversationId: string) => Promise<{ mode: string }>;
   interruptMessage: () => Promise<{ success: boolean }>;
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;

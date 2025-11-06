@@ -177,15 +177,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
   useEffect(() => {
     // Load mode when conversation changes
     const loadMode = async () => {
-      if (conversation?.mode) {
-        setMode(conversation.mode);
-      } else {
+      if (conversation?.id) {
         try {
-          const result = await window.electron.getMode();
+          const result = await window.electron.getMode(conversation.id);
           setMode(result.mode as PermissionMode);
         } catch (error) {
           console.error('Error loading mode:', error);
+          setMode('default');
         }
+      } else {
+        setMode('default');
       }
     };
 
@@ -272,8 +273,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
   };
 
   const handleModeChange = async (newMode: PermissionMode) => {
+    if (!conversation?.id) return;
+
     try {
-      await window.electron.setMode(newMode);
+      await window.electron.setMode(newMode, conversation.id);
       setMode(newMode);
     } catch (error) {
       console.error('Error changing mode:', error);

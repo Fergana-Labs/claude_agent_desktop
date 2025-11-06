@@ -360,16 +360,16 @@ ipcMain.handle('select-folder', async () => {
   return { success: false };
 });
 
-ipcMain.handle('get-project-path', async () => {
+ipcMain.handle('get-project-path', async (event, conversationId: string) => {
   if (!conversationManager) {
     throw new Error('Conversation manager not initialized');
   }
 
-  if (!activeConversationId) {
+  if (!conversationId) {
     return { path: '' };
   }
 
-  const conversation = await conversationManager.getConversation(activeConversationId);
+  const conversation = await conversationManager.getConversation(conversationId);
   return { path: conversation?.projectPath || '' };
 });
 
@@ -406,30 +406,37 @@ ipcMain.handle('interrupt-message', async () => {
 });
 
 // Set permission mode
-ipcMain.handle('set-mode', async (event, mode: string) => {
+ipcMain.handle('set-mode', async (event, mode: string, conversationId: string) => {
   if (!claudeAgent || !conversationManager) {
     throw new Error('Services not initialized');
   }
 
-  if (!activeConversationId) {
-    throw new Error('No active conversation');
+  if (!conversationId) {
+    throw new Error('No conversation ID provided');
   }
 
-  // Update agent mode
+  // Update agent mode (for immediate effect if this is the active conversation)
   claudeAgent.setMode(mode as any);
 
-  // Save mode to conversation
-  await conversationManager.updateMode(activeConversationId, mode as any);
+  // Save mode to specific conversation
+  await conversationManager.updateMode(conversationId, mode as any);
 
   return { success: true };
 });
 
 // Get current mode
-ipcMain.handle('get-mode', async () => {
-  if (!claudeAgent) {
-    throw new Error('Agent not initialized');
+ipcMain.handle('get-mode', async (event, conversationId: string) => {
+  if (!conversationManager) {
+    throw new Error('Conversation manager not initialized');
   }
-  return { mode: claudeAgent.getMode() };
+
+  if (!conversationId) {
+    throw new Error('No conversation ID provided');
+  }
+
+  // Get mode from database for specific conversation
+  const conversation = await conversationManager.getConversation(conversationId);
+  return { mode: conversation?.mode || 'default' };
 });
 
 // Approve permission
