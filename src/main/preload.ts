@@ -49,13 +49,18 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('user-message-saved', subscription);
   },
 
+  // Listen for assistant message saved event (triggers conversation list refresh for activity badges)
+  onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
+    ipcRenderer.on('assistant-message-saved', subscription);
+    return () => ipcRenderer.removeListener('assistant-message-saved', subscription);
+  },
+
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
-  getConversation: (conversationId: string) =>
-    ipcRenderer.invoke('get-conversation', conversationId),
-
-  newConversation: () => ipcRenderer.invoke('new-conversation'),
+  getConversation: (conversationId: string, limit?: number, offset?: number) =>
+    ipcRenderer.invoke('get-conversation', conversationId, limit, offset),
 
   newConversationWithFolder: (folderPath: string) =>
     ipcRenderer.invoke('new-conversation-with-folder', folderPath),
@@ -72,7 +77,7 @@ contextBridge.exposeInMainWorld('electron', {
   // Mode and permission management
   setMode: (mode: string, conversationId: string) => ipcRenderer.invoke('set-mode', mode, conversationId),
   getMode: (conversationId: string) => ipcRenderer.invoke('get-mode', conversationId),
-  interruptMessage: () => ipcRenderer.invoke('interrupt-message'),
+  interruptMessage: (conversationId?: string) => ipcRenderer.invoke('interrupt-message', conversationId),
   approvePermission: (permissionId: string) => ipcRenderer.invoke('approve-permission', permissionId),
   denyPermission: (permissionId: string) => ipcRenderer.invoke('deny-permission', permissionId),
 });
@@ -86,9 +91,9 @@ export interface ElectronAPI {
   onPermissionRequest: (callback: (request: any) => void) => () => void;
   onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => () => void;
   onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
+  onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
-  getConversation: (conversationId: string) => Promise<any>;
-  newConversation: () => Promise<{ success: boolean }>;
+  getConversation: (conversationId: string, limit?: number, offset?: number) => Promise<any>;
   newConversationWithFolder: (folderPath: string) => Promise<{ success: boolean; conversationId: string }>;
   deleteConversation: (conversationId: string) => Promise<{ success: boolean }>;
   selectFolder: () => Promise<{ success: boolean; path?: string }>;
@@ -97,7 +102,7 @@ export interface ElectronAPI {
   createFolder: (parentPath: string, folderName: string) => Promise<{ success: boolean; error?: string; path: string | null }>;
   setMode: (mode: string, conversationId: string) => Promise<{ success: boolean }>;
   getMode: (conversationId: string) => Promise<{ mode: string }>;
-  interruptMessage: () => Promise<{ success: boolean }>;
+  interruptMessage: (conversationId?: string) => Promise<{ success: boolean; error?: string }>;
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;
 }

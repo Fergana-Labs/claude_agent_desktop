@@ -56,9 +56,11 @@ function App() {
     }
   };
 
-  const loadConversation = async (conversationId: string) => {
+  const loadConversation = async (conversationId: string, limit?: number, offset?: number) => {
     try {
-      const conversation = await window.electron.getConversation(conversationId);
+      // For initial load, use pagination (load last 50 messages)
+      const initialLimit = limit !== undefined ? limit : 50;
+      const conversation = await window.electron.getConversation(conversationId, initialLimit, offset);
       setCurrentConversation(conversation);
 
       // Clear activity indicator for this conversation
@@ -89,6 +91,25 @@ function App() {
 
   const handleFolderModalCancel = () => {
     setShowFolderModal(false);
+  };
+
+  const handleLoadMoreMessages = async (conversationId: string, offset: number) => {
+    try {
+      const limit = 50; // Load 50 messages at a time
+      const olderMessages = await window.electron.getConversation(conversationId, limit, offset);
+
+      if (olderMessages && currentConversation) {
+        // Prepend older messages to current conversation
+        const updatedConversation = {
+          ...currentConversation,
+          messages: [...olderMessages.messages, ...currentConversation.messages],
+          totalMessageCount: olderMessages.totalMessageCount,
+        };
+        setCurrentConversation(updatedConversation);
+      }
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+    }
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -137,6 +158,7 @@ function App() {
       <ChatArea
         conversation={currentConversation}
         onMessageSent={loadConversations}
+        onLoadMoreMessages={handleLoadMoreMessages}
       />
     </div>
   );

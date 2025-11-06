@@ -20,6 +20,7 @@ interface Conversation {
   sessionId?: string;
   mode?: PermissionMode;
   messages: Message[];
+  totalMessageCount?: number;
 }
 
 export class ConversationManager {
@@ -209,7 +210,7 @@ export class ConversationManager {
     }));
   }
 
-  async getConversation(conversationId: string): Promise<Conversation | null> {
+  async getConversation(conversationId: string, limit?: number, offset?: number): Promise<Conversation | null> {
     const conversation = this.db.prepare(`
       SELECT * FROM conversations
       WHERE id = ?
@@ -219,11 +220,35 @@ export class ConversationManager {
       return null;
     }
 
-    const messages = this.db.prepare(`
-      SELECT * FROM messages
+    // Get total message count
+    const totalCount = this.db.prepare(`
+      SELECT COUNT(*) as count FROM messages
       WHERE conversation_id = ?
-      ORDER BY timestamp ASC
-    `).all(conversationId) as any[];
+    `).get(conversationId) as { count: number };
+
+    // If limit is provided, use pagination
+    let messages: any[];
+    if (limit !== undefined) {
+      // For initial load, get the latest N messages
+      // For loading older messages, use offset
+      const actualOffset = offset || 0;
+      messages = this.db.prepare(`
+        SELECT * FROM messages
+        WHERE conversation_id = ?
+        ORDER BY timestamp DESC
+        LIMIT ? OFFSET ?
+      `).all(conversationId, limit, actualOffset) as any[];
+
+      // Reverse to show oldest first (chronological order)
+      messages.reverse();
+    } else {
+      // Load all messages (backward compatibility)
+      messages = this.db.prepare(`
+        SELECT * FROM messages
+        WHERE conversation_id = ?
+        ORDER BY timestamp ASC
+      `).all(conversationId) as any[];
+    }
 
     return {
       id: conversation.id,
@@ -241,6 +266,7 @@ export class ConversationManager {
         attachments: msg.attachments ? JSON.parse(msg.attachments) : undefined,
         timestamp: msg.timestamp,
       })),
+      totalMessageCount: totalCount.count,
     };
   }
 

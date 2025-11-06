@@ -6,9 +6,10 @@ import './ChatArea.css';
 interface ChatAreaProps {
   conversation: Conversation | null;
   onMessageSent: () => void;
+  onLoadMoreMessages?: (conversationId: string, offset: number) => Promise<void>;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -17,7 +18,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
   const [folderExists, setFolderExists] = useState(true);
   const [mode, setMode] = useState<PermissionMode>('default');
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequest[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeightRef = useRef<number>(0);
 
   // Store per-conversation state
   const conversationInputsRef = useRef<Map<string, string>>(new Map());
@@ -107,6 +112,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       onMessageSent();
     });
 
+    // Set up assistant message saved listener (triggers conversation list refresh for activity badges)
+    const removeAssistantMessageSavedListener = window.electron.onAssistantMessageSaved((data: { conversationId: string }) => {
+      // Refresh conversation list to update activity badges, but don't auto-switch to the conversation
+      onMessageSent();
+    });
+
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -118,12 +129,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
       removePermissionListener();
       removeInterruptListener();
       removeUserMessageSavedListener();
+      removeAssistantMessageSavedListener();
     };
   }, [conversation]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [conversation?.messages, permissionRequests]);
 
   useEffect(() => {
     // Save current state before switching conversations
@@ -200,8 +208,60 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
     loadMode();
   }, [conversation]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Instantly scroll to bottom when conversation changes (no animation)
+  useEffect(() => {
+    if (conversation?.id) {
+      scrollToBottom('auto');
+      // Check if there are more messages to load
+      const totalMessages = conversation.totalMessageCount || 0;
+      const loadedMessages = conversation.messages.length;
+      setHasMoreMessages(loadedMessages < totalMessages);
+    }
+  }, [conversation?.id, conversation?.messages.length, conversation?.totalMessageCount]);
+
+  // Scroll event listener for loading older messages
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = async () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+
+      // Load more when scrolled near the top (within 100px)
+      if (scrollTop < 100 && hasMoreMessages && !isLoadingMore && conversation?.id && onLoadMoreMessages) {
+        setIsLoadingMore(true);
+        previousScrollHeightRef.current = scrollHeight;
+
+        try {
+          // Calculate offset based on current loaded messages
+          const offset = conversation.messages.length;
+
+          // Request parent to load more messages
+          await onLoadMoreMessages(conversation.id, offset);
+
+        } catch (error) {
+          console.error('Error loading more messages:', error);
+        } finally {
+          setIsLoadingMore(false);
+
+          // Restore scroll position after new messages are added
+          requestAnimationFrame(() => {
+            if (container) {
+              const newScrollHeight = container.scrollHeight;
+              const scrollDiff = newScrollHeight - previousScrollHeightRef.current;
+              container.scrollTop = scrollTop + scrollDiff;
+            }
+          });
+        }
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [conversation, hasMoreMessages, isLoadingMore]);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   const handleSend = async () => {
@@ -246,7 +306,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
 
   const handleStop = async () => {
     try {
-      await window.electron.interruptMessage();
+      const result = await window.electron.interruptMessage(conversation?.id);
+      if (!result.success) {
+        console.error('Error stopping message:', result.error);
+      }
       if (conversation?.id) {
         conversationLoadingRef.current.set(conversation.id, false);
         conversationStreamingRef.current.set(conversation.id, '');
@@ -399,7 +462,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
         </div>
       )}
 
-      <div className="messages-container">
+      <div className="messages-container" ref={messagesContainerRef}>
+        {isLoadingMore && (
+          <div style={{ textAlign: 'center', padding: '10px', color: '#858585' }}>
+            Loading older messages...
+          </div>
+        )}
         {conversation?.messages.map((msg, index) => (
           <div key={index} className={`message ${msg.role}`}>
             <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>

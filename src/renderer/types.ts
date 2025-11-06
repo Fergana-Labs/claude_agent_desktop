@@ -18,6 +18,7 @@ export interface Conversation {
   sessionId?: string;
   mode?: PermissionMode;
   messages: Message[];
+  totalMessageCount?: number;
 }
 
 export interface ToolExecution {

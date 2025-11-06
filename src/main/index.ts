@@ -196,6 +196,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       content: fullResponse,
     }, conversationId);
 
+    // Notify frontend that assistant message was saved (triggers conversation list refresh for activity badges)
+    mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+
     // Update session ID in database if it changed
     const newSessionId = agentManager.getCurrentSessionId(conversationId);
     if (newSessionId && newSessionId !== conversation.sessionId) {
@@ -217,19 +220,19 @@ ipcMain.handle('get-conversations', async () => {
   return await conversationManager.getConversations();
 });
 
-ipcMain.handle('get-conversation', async (event, conversationId: string) => {
+ipcMain.handle('get-conversation', async (event, conversationId: string, limit?: number, offset?: number) => {
   if (!conversationManager) {
     throw new Error('Services not initialized');
   }
 
   try {
-    console.log('[get-conversation] Loading conversation:', conversationId);
+    console.log('[get-conversation] Loading conversation:', conversationId, { limit, offset });
 
     // Set this as the active conversation for the conversation manager
     conversationManager.setCurrentConversationId(conversationId);
 
     // Simply return the conversation - the agent will be created on-demand when needed
-    const conversation = await conversationManager.getConversation(conversationId);
+    const conversation = await conversationManager.getConversation(conversationId, limit, offset);
 
     if (conversation) {
       console.log('[get-conversation] Conversation details:', {
@@ -245,19 +248,6 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
     console.error('Error loading conversation:', error);
     return null;
   }
-});
-
-ipcMain.handle('new-conversation', async () => {
-  if (!conversationManager) {
-    throw new Error('Services not initialized');
-  }
-  const conversationId = await conversationManager.newConversation();
-
-  // Set as active conversation
-  conversationManager.setCurrentConversationId(conversationId);
-
-  // Agent will be created on-demand when first message is sent
-  return { success: true, conversationId };
 });
 
 ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string) => {
@@ -349,18 +339,32 @@ ipcMain.handle('create-folder', async (event, parentPath: string, folderName: st
 
 // Interrupt message processing
 ipcMain.handle('interrupt-message', async (event, conversationId?: string) => {
-  if (!agentManager || !conversationManager) {
-    throw new Error('Services not initialized');
-  }
+  try {
+    if (!agentManager || !conversationManager) {
+      console.error('[interrupt-message] Services not initialized');
+      return { success: false, error: 'Services not initialized' };
+    }
 
-  // If no conversationId provided, use the current active conversation
-  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
-  if (!targetConversationId) {
-    throw new Error('No active conversation to interrupt');
-  }
+    // If no conversationId provided, use the current active conversation
+    const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+    if (!targetConversationId) {
+      console.error('[interrupt-message] No active conversation to interrupt');
+      return { success: false, error: 'No active conversation to interrupt' };
+    }
 
-  await agentManager.interrupt(targetConversationId);
-  return { success: true };
+    console.log('[interrupt-message] Interrupting conversation:', targetConversationId);
+
+    // Call interrupt asynchronously without waiting - don't block the IPC response
+    // The SDK's interrupt() can hang, so we return success immediately
+    agentManager.interrupt(targetConversationId).catch(error => {
+      console.error('[interrupt-message] Async interrupt error:', error);
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('[interrupt-message] Error:', error);
+    return { success: false, error: String(error) };
+  }
 });
 
 // Set permission mode
