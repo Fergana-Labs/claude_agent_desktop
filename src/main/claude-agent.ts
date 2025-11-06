@@ -78,7 +78,7 @@ export class ClaudeAgent extends EventEmitter {
         model: 'claude-sonnet-4-5-20250929',
         maxThinkingTokens: 10000,
         cwd: projectPath,
-        settingSources: ['user', 'project'],
+        settingSources: [],
         allowedTools: ['Skill', 'Read', 'Write', 'Bash'],
         plugins: [
           { type: 'local', path: this.config.pluginsPath }
@@ -241,7 +241,7 @@ export class ClaudeAgent extends EventEmitter {
   // Interrupt the current processing
   async interrupt(): Promise<void> {
     if (this.currentQuery && this.isProcessing) {
-      this.currentQuery.interrupt();
+      await this.currentQuery.interrupt();
     }
     // Clear the query reference and processing flag to prevent dangling references
     this.currentQuery = null;
@@ -271,7 +271,7 @@ export class ClaudeAgent extends EventEmitter {
   async reset(): Promise<void> {
     // Interrupt any active query first
     if (this.currentQuery && this.isProcessing) {
-      this.currentQuery.interrupt();
+      await this.currentQuery.interrupt();
     }
 
     // Clear all state
