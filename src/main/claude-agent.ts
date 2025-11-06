@@ -47,6 +47,11 @@ export class ClaudeAgent extends EventEmitter {
   private messageQueue: QueuedMessage[] = [];
   private isProcessing: boolean = false;
   private currentQuery: Query | null = null;
+  private isInterrupted: boolean = false;
+  private processingAttempts: number = 0;
+  private readonly MAX_PROCESSING_ATTEMPTS = 100;
+  private callbackQueue: MessageCallbacks[] = [];
+  private currentCallbackIndex: number = 0;
 
   constructor(config: ClaudeAgentConfig) {
     super();
@@ -82,87 +87,126 @@ export class ClaudeAgent extends EventEmitter {
   private async processQueue(): Promise<void> {
     if (this.isProcessing) return;
     this.isProcessing = true;
+    this.isInterrupted = false;
 
-    try {
-      const projectPath = this.config.projectPath || process.cwd();
-
-      const options: Options = {
-        model: 'claude-sonnet-4-5-20250929',
-        maxThinkingTokens: 10000,
-        cwd: projectPath,
-        settingSources: [],
-        allowedTools: ['Skill', 'Read', 'Write', 'Bash'],
-        plugins: [
-          { type: 'local', path: this.config.pluginsPath }
-        ],
-        resume: this.currentSessionId || undefined,
-        env: {
-          PATH: process.env.PATH,
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-        },
-      };
-
-      // Log SDK initialization details
-      console.log('[ClaudeAgent] Starting SDK query with options:', {
-        model: options.model,
-        cwd: options.cwd,
-        plugins: options.plugins,
-        resume: options.resume,
-        hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
-        messageQueueLength: this.messageQueue.length,
-      });
-
-      // Create async generator for messages
-      const messageGenerator = this.createMessageGenerator();
-
-      // Use streaming input mode with async generator
-      this.currentQuery = query({ prompt: messageGenerator, options });
-
-      // Set permission mode on the query
-      this.currentQuery.setPermissionMode(this.mode);
-
-      // Handle streaming messages from SDK
-      for await (const sdkMessage of this.currentQuery) {
-        await this.handleMessage(sdkMessage);
+    // Continuous processing loop - keep processing while messages exist
+    while (this.messageQueue.length > 0 && !this.isInterrupted) {
+      // Safety guard: prevent infinite loops
+      this.processingAttempts++;
+      if (this.processingAttempts > this.MAX_PROCESSING_ATTEMPTS) {
+        console.error('[ClaudeAgent] Max processing attempts reached, stopping to prevent infinite loop');
+        break;
       }
-    } catch (error: any) {
-      if (error.name === 'AbortError' || error.message?.includes('interrupt')) {
-        console.log('[ClaudeAgent] Query interrupted');
-        // Notify all queued callbacks about interruption
-        this.messageQueue.forEach(msg => {
-          if (msg.callbacks.onInterrupted) {
-            msg.callbacks.onInterrupted();
-          }
+
+      // Clear callback queue from previous iteration
+      this.callbackQueue = [];
+      this.currentCallbackIndex = 0;
+
+      try {
+        const projectPath = this.config.projectPath || process.cwd();
+
+        const options: Options = {
+          model: 'claude-sonnet-4-5-20250929',
+          maxThinkingTokens: 10000,
+          includePartialMessages: true,  // Enable real-time streaming
+          cwd: projectPath,
+          settingSources: [],
+          allowedTools: ['Skill', 'Read', 'Write', 'Bash'],
+          plugins: [
+            { type: 'local', path: this.config.pluginsPath }
+          ],
+          resume: this.currentSessionId || undefined,
+          env: {
+            PATH: process.env.PATH,
+            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+          },
+        };
+
+        // Log SDK initialization details
+        console.log('[ClaudeAgent] Starting SDK query with options:', {
+          model: options.model,
+          cwd: options.cwd,
+          plugins: options.plugins,
+          resume: options.resume,
+          hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
+          messageQueueLength: this.messageQueue.length,
+          processingAttempt: this.processingAttempts,
         });
-      } else {
-        console.error('[ClaudeAgent] Error in processQueue:', {
-          errorName: error.name,
-          errorMessage: error.message,
-          errorStack: error.stack,
-          sessionId: this.currentSessionId,
-          projectPath: this.config.projectPath,
-          isProcessing: this.isProcessing,
-          queueLength: this.messageQueue.length,
-          mode: this.mode,
-        });
-        throw error;
+
+        // Create async generator for messages
+        const messageGenerator = this.createMessageGenerator();
+
+        // Use streaming input mode with async generator
+        this.currentQuery = query({ prompt: messageGenerator, options });
+
+        // Set permission mode on the query
+        this.currentQuery.setPermissionMode(this.mode);
+
+        // Handle streaming messages from SDK
+        for await (const sdkMessage of this.currentQuery) {
+          await this.handleMessage(sdkMessage);
+        }
+
+        // Query completed successfully, reset attempts counter
+        this.processingAttempts = 0;
+
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.message?.includes('interrupt')) {
+          console.log('[ClaudeAgent] Query interrupted, preserving queued messages');
+          this.isInterrupted = true;
+
+          // Notify callbacks about interruption, but keep messages in queue
+          this.messageQueue.forEach(msg => {
+            if (msg.callbacks.onInterrupted) {
+              msg.callbacks.onInterrupted();
+            }
+          });
+
+          // Break out of processing loop but don't clear queue
+          break;
+        } else {
+          console.error('[ClaudeAgent] Error in processQueue:', {
+            errorName: error.name,
+            errorMessage: error.message,
+            errorStack: error.stack,
+            sessionId: this.currentSessionId,
+            projectPath: this.config.projectPath,
+            isProcessing: this.isProcessing,
+            queueLength: this.messageQueue.length,
+            mode: this.mode,
+          });
+          throw error;
+        }
+      } finally {
+        this.currentQuery = null;
       }
-    } finally {
-      this.isProcessing = false;
-      this.currentQuery = null;
-      this.messageQueue = [];
     }
+
+    // Only clear processing flag after all messages processed or interrupted
+    this.isProcessing = false;
+
+    // Reset attempts counter when processing completely finishes
+    this.processingAttempts = 0;
+
+    // Clear callback queue to prevent memory leaks
+    this.callbackQueue = [];
+    this.currentCallbackIndex = 0;
   }
 
   // Create async generator for streaming input
   private async *createMessageGenerator(): AsyncGenerator<SDKUserMessage, void, unknown> {
-    while (this.messageQueue.length > 0) {
-      const queued = this.messageQueue.shift();
-      if (!queued) break;
+    // Process only the messages that exist at the start of this generator's lifecycle
+    // New messages added during processing will be handled by the next iteration of processQueue's while loop
+    const messagesToProcess = [...this.messageQueue];
+    this.messageQueue = [];
 
-      // Store current callbacks in a way the message handler can access them
-      (this as any).currentCallbacks = queued.callbacks;
+    // Store all callbacks in queue to route responses correctly
+    this.callbackQueue = messagesToProcess.map(msg => msg.callbacks);
+    this.currentCallbackIndex = 0;
 
+    console.log('[ClaudeAgent] Processing batch of', messagesToProcess.length, 'messages');
+
+    for (const queued of messagesToProcess) {
       // Build message content
       let content = queued.message;
 
@@ -173,6 +217,12 @@ export class ClaudeAgent extends EventEmitter {
           content += `- ${file}\n`;
         });
       }
+
+      console.log('[ClaudeAgent] Yielding message to SDK:', {
+        contentPreview: content.substring(0, 100),
+        hasAttachments: queued.attachments.length > 0,
+        attachmentCount: queued.attachments.length,
+      });
 
       // Yield SDKUserMessage object
       yield {
@@ -188,7 +238,18 @@ export class ClaudeAgent extends EventEmitter {
   }
 
   private async handleMessage(message: SDKMessage) {
-    const callbacks: MessageCallbacks = (this as any).currentCallbacks || {};
+    // Get callbacks for current message being processed
+    const callbacks: MessageCallbacks = this.callbackQueue[this.currentCallbackIndex] || {};
+
+    // Debug logging for all SDK messages
+    console.log('[ClaudeAgent] handleMessage:', {
+      type: message.type,
+      callbackIndex: this.currentCallbackIndex,
+      queueLength: this.callbackQueue.length,
+      hasOnToken: !!callbacks.onToken,
+      hasOnThinking: !!callbacks.onThinking,
+      hasOnToolUse: !!callbacks.onToolUse,
+    });
 
     // Extract and store session ID for conversation continuity
     if ('session_id' in message && message.session_id) {
@@ -198,11 +259,14 @@ export class ClaudeAgent extends EventEmitter {
     switch (message.type) {
       case 'assistant':
         // Extract text, thinking, and tool_use from assistant message
+        console.log('[ClaudeAgent] Assistant message received');
         if (message.message && 'content' in message.message) {
           const content = message.message.content;
           if (Array.isArray(content)) {
+            console.log('[ClaudeAgent] Content blocks:', content.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking })));
             content.forEach((block: any) => {
               if (block.type === 'text' && callbacks.onToken) {
+                console.log('[ClaudeAgent] Sending text block:', block.text.substring(0, 50));
                 callbacks.onToken(block.text);
               } else if (block.type === 'thinking' && callbacks.onThinking) {
                 callbacks.onThinking(block.thinking);
@@ -215,11 +279,32 @@ export class ClaudeAgent extends EventEmitter {
         break;
 
       case 'stream_event':
-        // Handle streaming events
-        if (callbacks.onToken && 'delta' in message) {
-          const delta = (message as any).delta;
+        // Handle streaming events - log full structure to debug
+        const streamMsg = message as any;
+        console.log('[ClaudeAgent] Stream event structure:', {
+          hasEvent: !!streamMsg.event,
+          eventType: streamMsg.event?.type,
+          hasDelta: !!streamMsg.event?.delta,
+          deltaType: streamMsg.event?.delta?.type,
+          keys: Object.keys(streamMsg),
+        });
+
+        // Try different possible structures
+        if (streamMsg.event && streamMsg.event.delta) {
+          const delta = streamMsg.event.delta;
+          if (delta.type === 'text_delta' && delta.text) {
+            console.log('[ClaudeAgent] Found text delta:', delta.text.substring(0, 50));
+            if (callbacks.onToken) {
+              callbacks.onToken(delta.text);
+            }
+          }
+        } else if ('delta' in streamMsg) {
+          const delta = streamMsg.delta;
           if (delta && delta.type === 'text_delta' && delta.text) {
-            callbacks.onToken(delta.text);
+            console.log('[ClaudeAgent] Found text delta (alt structure):', delta.text.substring(0, 50));
+            if (callbacks.onToken) {
+              callbacks.onToken(delta.text);
+            }
           }
         }
         break;
@@ -237,15 +322,23 @@ export class ClaudeAgent extends EventEmitter {
         break;
 
       case 'result':
-        // Final result message
+        // Final result message for current user message - advance to next callback
+        console.log('[ClaudeAgent] Result received, advancing to next message callback', {
+          from: this.currentCallbackIndex,
+          to: this.currentCallbackIndex + 1,
+          queueLength: this.callbackQueue.length,
+        });
+        this.currentCallbackIndex++;
         break;
 
       case 'system':
         // System initialization
+        console.log('[ClaudeAgent] System message received');
         break;
 
       default:
         // Unknown message type
+        console.warn('[ClaudeAgent] Unknown message type:', message.type, message);
         break;
     }
   }
@@ -253,7 +346,12 @@ export class ClaudeAgent extends EventEmitter {
   // Interrupt the current processing
   async interrupt(): Promise<void> {
     try {
+      // Set interrupted flag to stop the processing loop
+      this.isInterrupted = true;
+
       if (this.currentQuery && this.isProcessing) {
+        console.log('[ClaudeAgent] Interrupting current query, queue length:', this.messageQueue.length);
+
         // Add timeout to prevent hanging forever
         const interruptPromise = this.currentQuery.interrupt();
         const timeoutPromise = new Promise((_, reject) =>
@@ -273,9 +371,11 @@ export class ClaudeAgent extends EventEmitter {
     } catch (error) {
       console.error('[ClaudeAgent] Error interrupting query:', error);
     } finally {
-      // Clear the query reference and processing flag to prevent dangling references
+      // Clear the query reference and processing flag
       this.currentQuery = null;
       this.isProcessing = false;
+
+      console.log('[ClaudeAgent] Interrupt complete, messages preserved in queue:', this.messageQueue.length);
     }
   }
 
@@ -301,6 +401,26 @@ export class ClaudeAgent extends EventEmitter {
 
   getCurrentSessionId(): string | null {
     return this.currentSessionId;
+  }
+
+  // Get current queue length (useful for debugging and UI feedback)
+  getQueueLength(): number {
+    return this.messageQueue.length;
+  }
+
+  // Clear the message queue (useful after interruption if user wants to discard pending messages)
+  clearQueue(): void {
+    console.log('[ClaudeAgent] Clearing message queue, discarding', this.messageQueue.length, 'messages');
+    this.messageQueue = [];
+  }
+
+  // Resume processing if there are queued messages (useful after interruption)
+  async resumeProcessing(): Promise<void> {
+    if (this.messageQueue.length > 0 && !this.isProcessing) {
+      console.log('[ClaudeAgent] Resuming processing with', this.messageQueue.length, 'queued messages');
+      this.isInterrupted = false;
+      await this.processQueue();
+    }
   }
 
   // Permission methods - handled by SDK mode
