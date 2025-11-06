@@ -12,10 +12,7 @@ const __dirname = dirname(__filename);
 
 // Load .env file
 const envPath = path.join(__dirname, '../../.env');
-console.log('Loading .env from:', envPath);
-const result = loadEnv({ path: envPath });
-console.log('Env loaded, API key present:', !!process.env.ANTHROPIC_API_KEY);
-console.log('API key starts with:', process.env.ANTHROPIC_API_KEY?.substring(0, 20));
+loadEnv({ path: envPath });
 
 // Fix PATH for Claude Agent SDK to find node
 // This is critical for the SDK to spawn child processes
@@ -63,10 +60,9 @@ const createWindow = () => {
       for (const port of ports) {
         try {
           await mainWindow!.loadURL(`http://localhost:${port}`);
-          console.log(`Loaded from Vite dev server on port ${port}`);
           return;
         } catch (err) {
-          console.log(`Port ${port} not available, trying next...`);
+          // Try next port
         }
       }
       console.error('Failed to load from Vite dev server. Make sure npm run dev:renderer is running.');
@@ -83,9 +79,6 @@ const createWindow = () => {
 };
 
 app.whenReady().then(async () => {
-  console.log('PATH:', process.env.PATH);
-  console.log('Node location:', process.execPath);
-
   // Initialize Conversation Manager
   conversationManager = new ConversationManager(
     path.join(app.getPath('userData'), 'conversations.db')
@@ -211,16 +204,13 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
       // Load conversation-specific session ID
       if (conversation.sessionId) {
         claudeAgent.setSessionId(conversation.sessionId);
-        console.log('Loaded session ID for conversation:', conversation.sessionId);
       } else {
         claudeAgent.setSessionId(null);
-        console.log('No session ID for this conversation, starting fresh');
       }
 
       // Load conversation-specific mode
       if (conversation.mode) {
         claudeAgent.setMode(conversation.mode);
-        console.log('Loaded mode for conversation:', conversation.mode);
       }
 
       // Update agent's project path if conversation has one
@@ -238,8 +228,6 @@ ipcMain.handle('get-conversation', async (event, conversationId: string) => {
         if (conversation.mode) {
           claudeAgent.setMode(conversation.mode);
         }
-
-        console.log('Loaded project path for conversation:', conversation.projectPath);
       }
     }
 

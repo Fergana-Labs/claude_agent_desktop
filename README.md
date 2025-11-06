@@ -4,14 +4,21 @@ An Electron desktop application that integrates Claude AI with Microsoft Office 
 
 ## Features
 
-- **AI-Powered Chat Interface**: Interactive chat with Claude AI using streaming responses
+- **AI-Powered Chat Interface**: Interactive chat with Claude AI using streaming responses with thinking visibility
 - **Microsoft Office Integration**: Create, read, and manipulate Office documents
   - Word (.docx) - Create documents, add paragraphs, tables, and formatting
   - Excel (.xlsx) - Create spreadsheets, formulas, charts, and data analysis
   - PowerPoint (.pptx) - Create presentations with slides, text, and visuals
-- **Conversation History**: Persistent conversation storage with SQLite
-- **File Attachments**: Attach and reference Office documents in conversations
-- **Tool Execution Visualization**: Real-time indicators when AI uses Office tools
+- **Multi-Conversation Management**:
+  - Persistent conversation storage with SQLite
+  - Per-conversation project folders
+  - Isolated conversation environments (switch between conversations without interference)
+  - Activity indicators when conversations receive updates in background
+- **Advanced Features**:
+  - Streaming input mode (queue messages while Claude responds)
+  - Message interruption (Stop button)
+  - Permission modes: Ask, Accept Edits, Auto-Accept, Plan
+  - Real-time tool execution visualization
 - **Modern UI**: Dark-themed, responsive interface built with React
 
 ## Prerequisites
@@ -135,26 +142,50 @@ This will create platform-specific installers in the `release/` directory.
 
 ### Conversation Management
 
-- **New Conversation**: Click "+ New Chat" in the sidebar
+- **New Conversation**: Click "+ New Chat" in the sidebar and select a project folder
 - **Switch Conversations**: Click on any conversation in the sidebar
+  - Each conversation maintains its own isolated environment
+  - Messages sent in one conversation don't interfere with others
+  - Activity indicators ("New" badge) show when a conversation receives updates while viewing another
 - **Delete Conversation**: Hover over a conversation and click the × button
+- **Folder Validation**: Conversations with missing project folders are marked (read-only access)
+
+### Permission Modes
+
+Control how Claude handles file operations and tool usage:
+
+- **Ask** (default): Request permission for each operation
+- **Accept Edits**: Auto-approve edit operations, ask for others
+- **Auto-Accept**: Approve all operations automatically
+- **Plan**: Plan mode for task planning
+
+Change the mode using the dropdown in the chat header.
+
+### Message Control
+
+- **Queue Messages**: Type and send messages even while Claude is responding
+- **Interrupt**: Click the Stop button to interrupt Claude's current response
 
 ## Architecture
 
 ### Claude Agent SDK Integration
 
 The app uses the official Claude Agent SDK with:
-- Custom skills for Office document manipulation
-- Automatic context management
-- Streaming response support
-- Tool execution tracking
+- **Streaming Input Mode**: Async generator pattern for message queueing
+- **Custom Skills**: Office document manipulation tools
+- **Session Management**: Per-conversation session persistence
+- **Permission Control**: Query-level permission mode setting
+- **Interruption Support**: Graceful message interruption via Query.interrupt()
+- **Thinking Visibility**: Real-time visibility into Claude's reasoning process
 
 ### IPC Communication
 
 Electron IPC provides secure communication between:
 - **Renderer Process** (React UI) → sends user messages
 - **Main Process** → executes Claude Agent SDK and Office tools
-- **Streaming Events** → real-time token delivery to UI
+- **Streaming Events** → real-time token delivery to UI with conversation ID tagging
+
+All events include a `conversationId` to ensure messages are routed to the correct conversation, enabling true multi-conversation isolation.
 
 ### Office Tools
 
@@ -170,7 +201,10 @@ Each Office tool is implemented as:
 The Agent SDK is configured in `src/main/claude-agent.ts`:
 - Model: `claude-sonnet-4-5-20250929`
 - Allowed tools: `Skill`, `Read`, `Write`, `Bash`
-- Skills path: `~/.config/claude-office-assistant/.claude/skills`
+- Skills path: User data directory + `.claude/skills`
+- Streaming input mode: Enabled via async generator pattern
+- Session persistence: Per-conversation session IDs stored in SQLite
+- Permission modes: Set via `Query.setPermissionMode()`
 
 ### Electron Builder
 
@@ -191,15 +225,22 @@ This is handled automatically by the postinstall script, but you can run it manu
 ### API Key Issues
 - Ensure `ANTHROPIC_API_KEY` is set in `.env`
 - Restart the app after changing environment variables
+- The .env file should be in the project root directory
 
 ### Office Tool Errors
 - Check that file paths are absolute and accessible
 - Ensure you have write permissions for output directories
 - Verify that input files are valid Office documents
 
+### Conversation Issues
+- **Messages going to wrong conversation**: Fixed - each conversation now has isolated state
+- **Can't access conversation with missing folder**: You can view messages but can't send new ones until the folder is restored
+- **Activity indicators not clearing**: Click into the conversation to clear the "New" badge
+
 ### Build Issues
 - Clear `dist/` and `node_modules/`, then reinstall: `npm clean-install`
 - Ensure all TypeScript files compile: `npm run build`
+- For Electron rebuild issues: `npm run postinstall`
 
 ## License
 

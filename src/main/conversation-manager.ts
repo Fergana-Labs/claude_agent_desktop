@@ -54,17 +54,14 @@ export class ConversationManager {
       const hasMode = tableInfo.some(col => col.name === 'mode');
 
       if (!hasProjectPath) {
-        console.log('Adding project_path column to conversations table');
         this.db.exec('ALTER TABLE conversations ADD COLUMN project_path TEXT');
       }
 
       if (!hasSessionId) {
-        console.log('Adding session_id column to conversations table');
         this.db.exec('ALTER TABLE conversations ADD COLUMN session_id TEXT');
       }
 
       if (!hasMode) {
-        console.log('Adding mode column to conversations table');
         this.db.exec("ALTER TABLE conversations ADD COLUMN mode TEXT DEFAULT 'default'");
       }
     } catch (error) {

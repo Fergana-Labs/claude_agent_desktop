@@ -72,12 +72,7 @@ export class ClaudeAgent extends EventEmitter {
     this.isProcessing = true;
 
     try {
-      console.log('Starting message processing with streaming input mode...');
-      console.log('API key present:', !!process.env.ANTHROPIC_API_KEY);
-      console.log('Skills path:', this.config.skillsPath);
-
       const projectPath = this.config.projectPath || process.cwd();
-      console.log('Project path:', projectPath);
 
       const options: Options = {
         model: 'claude-sonnet-4-5-20250929',
@@ -92,9 +87,6 @@ export class ClaudeAgent extends EventEmitter {
         },
       };
 
-      console.log('Session ID:', this.currentSessionId ? `Resuming ${this.currentSessionId}` : 'Starting new session');
-      console.log('Mode:', this.mode);
-
       // Create async generator for messages
       const messageGenerator = this.createMessageGenerator();
 
@@ -108,11 +100,8 @@ export class ClaudeAgent extends EventEmitter {
       for await (const sdkMessage of this.currentQuery) {
         await this.handleMessage(sdkMessage);
       }
-
-      console.log('Message processing completed successfully');
     } catch (error: any) {
       if (error.name === 'AbortError' || error.message?.includes('interrupt')) {
-        console.log('Message processing was interrupted');
         // Notify all queued callbacks about interruption
         this.messageQueue.forEach(msg => {
           if (msg.callbacks.onInterrupted) {
@@ -171,8 +160,6 @@ export class ClaudeAgent extends EventEmitter {
       this.currentSessionId = message.session_id;
     }
 
-    console.log('Received message type:', message.type);
-
     switch (message.type) {
       case 'assistant':
         // Extract text, thinking, and tool_use from assistant message
@@ -216,23 +203,21 @@ export class ClaudeAgent extends EventEmitter {
 
       case 'result':
         // Final result message
-        console.log('Query completed:', message.subtype);
         break;
 
       case 'system':
         // System initialization
-        console.log('System initialized');
         break;
 
       default:
-        console.log('Received message type:', message.type);
+        // Unknown message type
+        break;
     }
   }
 
   // Interrupt the current processing
   async interrupt(): Promise<void> {
     if (this.currentQuery && this.isProcessing) {
-      console.log('Interrupting current message processing...');
       this.currentQuery.interrupt();
     }
   }
@@ -240,7 +225,6 @@ export class ClaudeAgent extends EventEmitter {
   // Set the permission mode
   setMode(mode: PermissionMode): void {
     this.mode = mode;
-    console.log('Permission mode set to:', mode);
 
     // Update current query if running
     if (this.currentQuery) {
@@ -258,7 +242,6 @@ export class ClaudeAgent extends EventEmitter {
     this.mode = 'default';
     this.messageQueue = [];
     this.isProcessing = false;
-    console.log('Session reset - starting new conversation');
   }
 
   getCurrentSessionId(): string | null {
@@ -267,15 +250,14 @@ export class ClaudeAgent extends EventEmitter {
 
   setSessionId(sessionId: string | null): void {
     this.currentSessionId = sessionId;
-    console.log('Session ID set to:', sessionId);
   }
 
-  // Remove unused permission methods since SDK handles it
+  // Permission methods - handled by SDK mode
   async approvePermission(permissionId: string): Promise<void> {
-    console.log('Permission approval handled by SDK mode');
+    // Permission approval handled by SDK mode
   }
 
   async denyPermission(permissionId: string): Promise<void> {
-    console.log('Permission denial handled by SDK mode');
+    // Permission denial handled by SDK mode
   }
 }
