@@ -341,23 +341,19 @@ ipcMain.handle('create-folder', async (event, parentPath: string, folderName: st
 ipcMain.handle('interrupt-message', async (event, conversationId?: string) => {
   try {
     if (!agentManager || !conversationManager) {
-      console.error('[interrupt-message] Services not initialized');
       return { success: false, error: 'Services not initialized' };
     }
 
     // If no conversationId provided, use the current active conversation
     const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
     if (!targetConversationId) {
-      console.error('[interrupt-message] No active conversation to interrupt');
       return { success: false, error: 'No active conversation to interrupt' };
     }
-
-    console.log('[interrupt-message] Interrupting conversation:', targetConversationId);
 
     // Call interrupt asynchronously without waiting - don't block the IPC response
     // The SDK's interrupt() can hang, so we return success immediately
     agentManager.interrupt(targetConversationId).catch(error => {
-      console.error('[interrupt-message] Async interrupt error:', error);
+      console.error('[interrupt-message] Error:', error);
     });
 
     return { success: true };

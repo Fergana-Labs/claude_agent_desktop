@@ -252,16 +252,8 @@ export class ClaudeAgent extends EventEmitter {
 
   // Interrupt the current processing
   async interrupt(): Promise<void> {
-    console.log('[ClaudeAgent] interrupt() called', {
-      hasCurrentQuery: !!this.currentQuery,
-      isProcessing: this.isProcessing,
-      messageQueueLength: this.messageQueue.length
-    });
-
     try {
       if (this.currentQuery && this.isProcessing) {
-        console.log('[ClaudeAgent] Calling SDK query.interrupt()...');
-
         // Add timeout to prevent hanging forever
         const interruptPromise = this.currentQuery.interrupt();
         const timeoutPromise = new Promise((_, reject) =>
@@ -270,24 +262,17 @@ export class ClaudeAgent extends EventEmitter {
 
         try {
           await Promise.race([interruptPromise, timeoutPromise]);
-          console.log('[ClaudeAgent] SDK query.interrupt() completed');
         } catch (error: any) {
           if (error.message === 'Interrupt timeout') {
-            console.warn('[ClaudeAgent] SDK query.interrupt() timed out after 5s, forcing cleanup');
+            console.warn('[ClaudeAgent] Interrupt timed out after 5s, forcing cleanup');
           } else {
             throw error;
           }
         }
-      } else {
-        console.log('[ClaudeAgent] Skipping interrupt - conditions not met', {
-          hasCurrentQuery: !!this.currentQuery,
-          isProcessing: this.isProcessing
-        });
       }
     } catch (error) {
       console.error('[ClaudeAgent] Error interrupting query:', error);
     } finally {
-      console.log('[ClaudeAgent] Clearing query state');
       // Clear the query reference and processing flag to prevent dangling references
       this.currentQuery = null;
       this.isProcessing = false;
