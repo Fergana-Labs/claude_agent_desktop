@@ -11,9 +11,10 @@ interface ChatAreaProps {
   conversation: Conversation | null;
   onMessageSent: () => void;
   onLoadMoreMessages?: (conversationId: string, offset: number) => Promise<void>;
+  onChatAreaFocus?: () => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages, onChatAreaFocus }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -24,6 +25,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [showAutoAcceptWarning, setShowAutoAcceptWarning] = useState(false);
+  const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
+  const [pendingMode, setPendingMode] = useState<PermissionMode | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
@@ -433,12 +437,55 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const handleModeChange = async (newMode: PermissionMode) => {
     if (!conversation?.id) return;
 
+    // Check if switching to Auto-Accept All (bypassPermissions)
+    if (newMode === 'bypassPermissions') {
+      // Check localStorage for "don't show again" preference
+      const hideWarning = localStorage.getItem('hideAutoAcceptWarning') === 'true';
+
+      if (!hideWarning) {
+        // Show warning modal
+        setPendingMode(newMode);
+        setShowAutoAcceptWarning(true);
+        return; // Don't change mode yet, wait for user confirmation
+      }
+    }
+
+    // Proceed with mode change
     try {
       await window.electron.setMode(newMode, conversation.id);
       setMode(newMode);
     } catch (error) {
       console.error('Error changing mode:', error);
     }
+  };
+
+  const handleConfirmAutoAccept = async () => {
+    // Save "don't show again" preference if checked
+    if (dontShowAgainChecked) {
+      localStorage.setItem('hideAutoAcceptWarning', 'true');
+    }
+
+    // Change to Auto-Accept All mode
+    if (pendingMode && conversation?.id) {
+      try {
+        await window.electron.setMode(pendingMode, conversation.id);
+        setMode(pendingMode);
+      } catch (error) {
+        console.error('Error changing mode:', error);
+      }
+    }
+
+    // Close modal and reset state
+    setShowAutoAcceptWarning(false);
+    setPendingMode(null);
+    setDontShowAgainChecked(false);
+  };
+
+  const handleCancelAutoAccept = () => {
+    // Close modal without changing mode
+    setShowAutoAcceptWarning(false);
+    setPendingMode(null);
+    setDontShowAgainChecked(false);
   };
 
   const handleApprovePermission = async (permissionId: string) => {
@@ -515,6 +562,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   return (
     <div
       className="chat-area"
+      onClick={() => onChatAreaFocus?.()}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -718,6 +766,78 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           </div>
         ))}
 
+        {/* Auto-Accept All Warning Modal */}
+        {showAutoAcceptWarning && (
+          <div style={{
+            background: '#2a2a2a',
+            border: '2px solid #f5222d',
+            borderRadius: '8px',
+            padding: '16px',
+            margin: '10px 0',
+            animation: 'pulse 2s infinite'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '24px' }}>⚠️</span>
+              <strong style={{ color: '#f5222d', fontSize: '16px' }}>Warning: Auto-Accept All Mode</strong>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ color: '#ddd', marginBottom: '8px' }}>
+                You are about to enable <strong>Auto-Accept All</strong> mode, which will:
+              </div>
+              <ul style={{ color: '#ddd', marginLeft: '20px', marginBottom: '8px' }}>
+                <li>Automatically approve ALL tool executions without asking</li>
+                <li>Allow Claude to read, write, and delete files</li>
+                <li>Allow Claude to run arbitrary commands</li>
+                <li>Potentially cause data loss or system changes</li>
+              </ul>
+              <div style={{ color: '#f5222d', fontSize: '13px', fontWeight: 'bold' }}>
+                Only use this mode if you fully trust the current conversation context.
+              </div>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ddd', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={dontShowAgainChecked}
+                  onChange={(e) => setDontShowAgainChecked(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Don't show this warning again
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleCancelAutoAccept}
+                style={{
+                  background: '#3e3e42',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAutoAccept}
+                style={{
+                  background: '#f5222d',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                Enable Auto-Accept All
+              </button>
+            </div>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -742,6 +862,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => onChatAreaFocus?.()}
             placeholder={folderExists ? "Type a message... (Shift+Enter for new line)" : "Folder not found - cannot send messages"}
             disabled={!folderExists}
             rows={3}

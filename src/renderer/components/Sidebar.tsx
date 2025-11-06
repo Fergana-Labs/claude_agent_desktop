@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Conversation } from '../types';
 import './Sidebar.css';
 
@@ -16,7 +16,12 @@ interface ConversationWithValidity extends Conversation {
   folderExists: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({
+export interface SidebarRef {
+  handleDeleteFocused: () => void;
+  clearFocus: () => void;
+}
+
+const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   conversations,
   currentConversationId,
   conversationsWithActivity,
@@ -24,9 +29,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onNewConversation,
   onDeleteConversation,
   onForkConversation,
-}) => {
+}, ref) => {
   const [validatedConversations, setValidatedConversations] = useState<ConversationWithValidity[]>([]);
   const [contextMenu, setContextMenu] = useState<{ conversationId: string; x: number; y: number } | null>(null);
+  const [focusedConversationId, setFocusedConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     const validateFolders = async () => {
@@ -54,6 +60,25 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [contextMenu]);
 
+  // Expose methods via ref for keyboard shortcuts in App
+  useImperativeHandle(ref, () => ({
+    clearFocus: () => {
+      console.log('[Sidebar] clearFocus called');
+      setFocusedConversationId(null);
+    },
+    handleDeleteFocused: () => {
+      console.log('[Sidebar] handleDeleteFocused called, focusedConversationId:', focusedConversationId);
+      if (focusedConversationId) {
+        console.log('[Sidebar] Deleting conversation:', focusedConversationId);
+        onDeleteConversation(focusedConversationId);
+        // Clear focus after delete
+        setFocusedConversationId(null);
+      } else {
+        console.log('[Sidebar] No focused conversation to delete');
+      }
+    }
+  }), [focusedConversationId, validatedConversations, onDeleteConversation]);
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -72,6 +97,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleConversationClick = (conv: ConversationWithValidity) => {
+    console.log('[Sidebar] Conversation clicked:', conv.id);
+    // Set focus to this conversation
+    setFocusedConversationId(conv.id);
+    console.log('[Sidebar] Focus set to:', conv.id);
     // Always allow selecting conversations - they can view messages even if folder is missing
     onSelectConversation(conv.id);
   };
@@ -104,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         {validatedConversations.map((conv) => (
           <div
             key={conv.id}
-            className={`conversation-item ${conv.id === currentConversationId ? 'active' : ''} ${!conv.folderExists && conv.projectPath ? 'invalid' : ''}`}
+            className={`conversation-item ${conv.id === currentConversationId ? 'active' : ''} ${conv.id === focusedConversationId ? 'focused' : ''} ${!conv.folderExists && conv.projectPath ? 'invalid' : ''}`}
             onClick={() => handleConversationClick(conv)}
             onContextMenu={(e) => handleContextMenu(e, conv.id)}
             style={{
@@ -193,6 +222,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
     </div>
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';
 
 export default Sidebar;

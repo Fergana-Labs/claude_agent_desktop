@@ -419,6 +419,13 @@ export class ClaudeAgent extends EventEmitter {
     } catch (error) {
       console.error('[ClaudeAgent] Error interrupting query:', error);
     } finally {
+      // Notify all queued messages about interruption
+      this.messageQueue.forEach(msg => {
+        if (msg.callbacks.onInterrupted) {
+          msg.callbacks.onInterrupted();
+        }
+      });
+
       // Clear the query reference and processing flag
       this.currentQuery = null;
       this.isProcessing = false;
