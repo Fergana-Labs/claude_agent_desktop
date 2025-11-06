@@ -1,0 +1,123 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #2d2d2d;
+  border-radius: 8px;
+  padding: 24px;
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h2 {
+  margin: 0 0 8px 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+.modal-content p {
+  margin: 0 0 20px 0;
+  color: #aaa;
+  font-size: 14px;
+}
+
+.folder-display {
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.selected-path {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.path-label {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+}
+
+.path-value {
+  font-size: 13px;
+  color: #fff;
+  word-break: break-all;
+}
+
+.no-selection {
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.select-folder-btn {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.select-folder-btn:hover {
+  background: #0052a3;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn,
+.confirm-btn {
+  padding: 8px 20px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.cancel-btn {
+  background: #444;
+  color: #fff;
+}
+
+.cancel-btn:hover {
+  background: #555;
+}
+
+.confirm-btn {
+  background: #0066cc;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #0052a3;
+}
+
+.confirm-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+}

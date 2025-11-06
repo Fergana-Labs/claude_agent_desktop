@@ -1,0 +1,74 @@
+{
+  "name": "claude-office-assistant",
+  "version": "1.0.0",
+  "description": "Electron app with Claude Agent SDK and Microsoft Office tools",
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "vite",
+    "dev:main": "npm run build:main && NODE_ENV=development electron .",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
+    "package": "electron-builder",
+    "start": "electron ."
+  },
+  "keywords": [
+    "electron",
+    "claude",
+    "ai",
+    "office"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.4",
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11",
+    "vite-plugin-electron": "^0.28.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "@anthropic-ai/sdk": "^0.68.0",
+    "better-sqlite3": "^9.2.2",
+    "docx": "^8.5.0",
+    "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.11.0",
+    "pptxgenjs": "^3.12.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.claude.office.assistant",
+    "productName": "Claude Office Assistant",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      ".claude/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.main.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node"
+  },
+  "include": ["src/main/preload.ts"]
+}
