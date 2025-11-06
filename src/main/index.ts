@@ -100,6 +100,17 @@ app.whenReady().then(async () => {
     conversationManager
   );
 
+  // Forward processing events to renderer
+  agentManager.on('processing-started', (data: any) => {
+    console.log('[Main] Processing started:', data);
+    mainWindow?.webContents.send('processing-started', data);
+  });
+
+  agentManager.on('processing-complete', (data: any) => {
+    console.log('[Main] Processing complete:', data);
+    mainWindow?.webContents.send('processing-complete', data);
+  });
+
   createWindow();
 
   app.on('activate', () => {

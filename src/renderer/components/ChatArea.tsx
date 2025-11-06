@@ -25,6 +25,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
   const dragCounterRef = useRef(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const streamingUpdateScheduledRef = useRef(false);
 
   // Store per-conversation state
   const conversationInputsRef = useRef<Map<string, string>>(new Map());
@@ -35,7 +37,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const conversationPermissionsRef = useRef<Map<string, PermissionRequest[]>>(new Map());
 
   useEffect(() => {
-    // Set up streaming token listener
+    // Set up streaming token listener with throttling to reduce "twitchy" behavior
     const removeTokenListener = window.electron.onMessageToken((data: { token: string; conversationId: string }) => {
       // Store the token for the conversation it belongs to
       const currentContent = conversationStreamingRef.current.get(data.conversationId) || '';
@@ -43,9 +45,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       conversationStreamingRef.current.set(data.conversationId, newContent);
 
       // Only update UI if this is the currently viewed conversation
-      if (conversation?.id === data.conversationId) {
-        setStreamingContent(newContent);
-        scrollToBottom();
+      // Use requestAnimationFrame to throttle updates to ~60fps max
+      if (conversation?.id === data.conversationId && !streamingUpdateScheduledRef.current) {
+        streamingUpdateScheduledRef.current = true;
+        requestAnimationFrame(() => {
+          streamingUpdateScheduledRef.current = false;
+          // Get the latest content from the ref (may have more tokens than when scheduled)
+          const latestContent = conversationStreamingRef.current.get(data.conversationId) || '';
+          setStreamingContent(latestContent);
+          scrollToBottom();
+        });
       }
     });
 
@@ -120,6 +129,30 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       onMessageSent();
     });
 
+    // Set up processing started listener
+    const removeProcessingStartedListener = window.electron.onProcessingStarted((data: { conversationId: string }) => {
+      // Set loading state for the conversation that started processing
+      conversationLoadingRef.current.set(data.conversationId, true);
+
+      // Only update UI if this is the currently viewed conversation
+      if (conversation?.id === data.conversationId) {
+        setIsLoading(true);
+      }
+    });
+
+    // Set up processing complete listener
+    const removeProcessingCompleteListener = window.electron.onProcessingComplete((data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => {
+      // Clear loading state for the conversation that completed processing
+      conversationLoadingRef.current.set(data.conversationId, false);
+      conversationStreamingRef.current.set(data.conversationId, '');
+
+      // Only update UI if this is the currently viewed conversation
+      if (conversation?.id === data.conversationId) {
+        setIsLoading(false);
+        setStreamingContent('');
+      }
+    });
+
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -132,6 +165,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       removeInterruptListener();
       removeUserMessageSavedListener();
       removeAssistantMessageSavedListener();
+      removeProcessingStartedListener();
+      removeProcessingCompleteListener();
     };
   }, [conversation]);
 
@@ -218,6 +253,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       const totalMessages = conversation.totalMessageCount || 0;
       const loadedMessages = conversation.messages.length;
       setHasMoreMessages(loadedMessages < totalMessages);
+
+      // Auto-focus the textarea when conversation changes
+      // Use a small delay to ensure the component is fully rendered
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
     }
   }, [conversation?.id, conversation?.messages.length, conversation?.totalMessageCount]);
 
@@ -283,22 +324,25 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     conversationInputsRef.current.delete(conversationId);
     conversationAttachmentsRef.current.delete(conversationId);
 
-    // Set loading state for this conversation
-    conversationLoadingRef.current.set(conversationId, true);
-    conversationStreamingRef.current.set(conversationId, '');
-    setIsLoading(true);
-    setStreamingContent('');
+    // Set loading state for this conversation (only if not already loading)
+    const alreadyLoading = conversationLoadingRef.current.get(conversationId);
+    if (!alreadyLoading) {
+      conversationLoadingRef.current.set(conversationId, true);
+      conversationStreamingRef.current.set(conversationId, '');
+      setIsLoading(true);
+      setStreamingContent('');
+    }
 
     try {
       await window.electron.sendMessage(messageContent, conversationId, messageAttachments);
       // Note: We don't refresh conversations here because:
       // 1. The user-message-saved event already triggers a refresh
       // 2. We don't want to auto-switch back to this chat if the user switched away
+      // 3. Loading state is now managed by backend processing-started/processing-complete events
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message. Please check your API key.');
-    } finally {
-      // Clear loading state for this conversation
+      // Clear loading state only on error (processing never started)
       conversationLoadingRef.current.set(conversationId, false);
       conversationStreamingRef.current.set(conversationId, '');
       setIsLoading(false);
@@ -691,10 +735,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         )}
 
         <div className="input-controls">
-          <button className="attach-btn" onClick={handleFileAttach} disabled={isLoading || !folderExists}>
+          <button className="attach-btn" onClick={handleFileAttach} disabled={!folderExists}>
             📎
           </button>
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -702,23 +747,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             disabled={!folderExists}
             rows={3}
           />
-          {isLoading ? (
-            <button
-              className="stop-btn"
-              onClick={handleStop}
-              style={{
-                background: '#f5222d',
-                color: '#fff',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              ■ Stop
-            </button>
-          ) : (
+          <div className="button-stack">
+            {isLoading && (
+              <button
+                className="stop-btn"
+                onClick={handleStop}
+              >
+                ■ Stop
+              </button>
+            )}
             <button
               className="send-btn"
               onClick={handleSend}
@@ -726,7 +763,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             >
               Send
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

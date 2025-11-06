@@ -89,6 +89,9 @@ export class ClaudeAgent extends EventEmitter {
     this.isProcessing = true;
     this.isInterrupted = false;
 
+    // Emit processing started event
+    this.emit('processing-started');
+
     // Continuous processing loop - keep processing while messages exist
     while (this.messageQueue.length > 0 && !this.isInterrupted) {
       // Safety guard: prevent infinite loops
@@ -191,6 +194,12 @@ export class ClaudeAgent extends EventEmitter {
     // Clear callback queue to prevent memory leaks
     this.callbackQueue = [];
     this.currentCallbackIndex = 0;
+
+    // Emit processing complete event
+    this.emit('processing-complete', {
+      interrupted: this.isInterrupted,
+      remainingMessages: this.messageQueue.length
+    });
   }
 
   // Create async generator for streaming input

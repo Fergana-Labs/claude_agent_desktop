@@ -1,5 +1,6 @@
 import { ClaudeAgent, PermissionMode } from './claude-agent.js';
 import { ConversationManager } from './conversation-manager.js';
+import { EventEmitter } from 'events';
 
 interface MessageCallbacks {
   onToken?: (token: string) => void;
@@ -23,12 +24,13 @@ interface AgentConfig {
  * - Permission mode
  * - Active query
  */
-export class ConversationAgentManager {
+export class ConversationAgentManager extends EventEmitter {
   private agents: Map<string, ClaudeAgent> = new Map();
   private config: AgentConfig;
   private conversationManager: ConversationManager;
 
   constructor(config: AgentConfig, conversationManager: ConversationManager) {
+    super();
     this.config = config;
     this.conversationManager = conversationManager;
   }
@@ -62,6 +64,17 @@ export class ConversationAgentManager {
       projectPath: conversation.projectPath || process.cwd(),
       sessionId: conversation.sessionId || null,
       mode: conversation.mode || 'default',
+    });
+
+    // Forward agent events with conversationId
+    agent.on('processing-started', () => {
+      console.log('[AgentManager] Processing started for conversation:', conversationId);
+      this.emit('processing-started', { conversationId });
+    });
+
+    agent.on('processing-complete', (data: any) => {
+      console.log('[AgentManager] Processing complete for conversation:', conversationId, data);
+      this.emit('processing-complete', { conversationId, ...data });
     });
 
     // Store agent in map

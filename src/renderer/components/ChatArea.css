@@ -238,6 +238,31 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
+.button-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.stop-btn {
+  padding: 10px 24px;
+  background-color: #f5222d;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background-color 0.2s;
+  height: 42px;
+  min-width: 80px;
+}
+
+.stop-btn:hover {
+  background-color: #d91a1a;
+}
+
 /* Markdown styling */
 .message-content pre {
   background-color: #1e1e1e;

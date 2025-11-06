@@ -88,9 +88,14 @@ function App() {
 
   const handleFolderSelected = async (folderPath: string) => {
     try {
-      await window.electron.newConversationWithFolder(folderPath);
+      const result = await window.electron.newConversationWithFolder(folderPath);
       setShowFolderModal(false);
       await loadConversations();
+
+      // Auto-select the newly created conversation
+      if (result.success && result.conversationId) {
+        await loadConversation(result.conversationId);
+      }
     } catch (error) {
       console.error('Error creating new conversation:', error);
     }
