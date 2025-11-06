@@ -229,8 +229,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent }) => {
 
     try {
       await window.electron.sendMessage(messageContent, conversationId, messageAttachments);
-      // Refresh conversation list after message is sent (this will update the sort order)
-      onMessageSent();
+      // Note: We don't refresh conversations here because:
+      // 1. The user-message-saved event already triggers a refresh
+      // 2. We don't want to auto-switch back to this chat if the user switched away
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message. Please check your API key.');
