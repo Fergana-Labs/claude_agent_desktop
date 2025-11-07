@@ -337,9 +337,19 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       // 1. The user-message-saved event already triggers a refresh
       // 2. We don't want to auto-switch back to this chat if the user switched away
       // 3. Loading state is now managed by backend processing-started/processing-complete events
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please check your API key.');
+
+      // Check if this is an interruption error (user pressed ESC)
+      const isInterruption = error?.name === 'AbortError' ||
+                            error?.message?.includes('AbortError') ||
+                            error?.message?.includes('interrupt');
+
+      // Only show alert for real errors, not interruptions
+      if (!isInterruption) {
+        alert('Failed to send message. Please check your API key.');
+      }
+
       // Clear loading state only on error (processing never started)
       conversationLoadingRef.current.set(conversationId, false);
       conversationStreamingRef.current.set(conversationId, '');
@@ -683,7 +693,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                 <div key={index} className={`message ${msg.role}`}>
                   <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
                   <div className="message-content">
-                    {msg.attachments && msg.attachments.length > 0 && (
+                    {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                       <div className="message-attachments">
                         {msg.attachments.map((file, i) => (
                           <div key={i} className="attachment-badge">

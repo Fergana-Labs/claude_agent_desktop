@@ -283,20 +283,29 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
   } catch (error: any) {
     console.error('Error sending message:', error);
 
-    // Save error as a message
-    try {
-      await conversationManager.saveMessage({
-        role: 'assistant',
-        content: error.message || 'An error occurred',
-        messageType: 'error',
-        metadata: {
-          errorType: error.name || 'Error',
-          stack: error.stack,
-        },
-      }, conversationId);
-      mainWindow?.webContents.send('assistant-message-saved', { conversationId });
-    } catch (saveError) {
-      console.error('Error saving error message:', saveError);
+    // Check if this is an abort/interrupt error (user pressed ESC)
+    const isInterruption = error.name === 'AbortError' ||
+                          error.message?.includes('AbortError') ||
+                          error.message?.includes('interrupt');
+
+    // Only save non-interruption errors as error messages
+    if (!isInterruption) {
+      try {
+        await conversationManager.saveMessage({
+          role: 'assistant',
+          content: error.message || 'An error occurred',
+          messageType: 'error',
+          metadata: {
+            errorType: error.name || 'Error',
+            stack: error.stack,
+          },
+        }, conversationId);
+        mainWindow?.webContents.send('assistant-message-saved', { conversationId });
+      } catch (saveError) {
+        console.error('Error saving error message:', saveError);
+      }
+    } else {
+      console.log('[send-message] Message interrupted by user, not saving as error');
     }
 
     throw error;

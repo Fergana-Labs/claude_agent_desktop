@@ -48,6 +48,7 @@ export class ClaudeAgent extends EventEmitter {
   private messageQueue: QueuedMessage[] = [];
   private isProcessing: boolean = false;
   private currentQuery: Query | null = null;
+  private abortController: AbortController | null = null;
   private isInterrupted: boolean = false;
   private processingAttempts: number = 0;
   private readonly MAX_PROCESSING_ATTEMPTS = 100;
@@ -108,6 +109,9 @@ export class ClaudeAgent extends EventEmitter {
       this.currentCallbackIndex = 0;
       this.streamedTextByCallback.clear();
 
+      // Create new AbortController for this query
+      this.abortController = new AbortController();
+
       try {
         const projectPath = this.config.projectPath || process.cwd();
 
@@ -154,8 +158,13 @@ export class ClaudeAgent extends EventEmitter {
         // Set permission mode on the query
         this.currentQuery.setPermissionMode(this.mode);
 
-        // Handle streaming messages from SDK
+        // Handle streaming messages from SDK with abort checking
         for await (const sdkMessage of this.currentQuery) {
+          // Check if abort was signaled - break immediately
+          if (this.abortController.signal.aborted) {
+            console.log('[ClaudeAgent] Abort signal detected, breaking out of message loop');
+            throw new Error('AbortError');
+          }
           await this.handleMessage(sdkMessage);
         }
 
@@ -191,6 +200,7 @@ export class ClaudeAgent extends EventEmitter {
         }
       } finally {
         this.currentQuery = null;
+        this.abortController = null;
       }
     }
 
@@ -397,22 +407,32 @@ export class ClaudeAgent extends EventEmitter {
       // Set interrupted flag to stop the processing loop
       this.isInterrupted = true;
 
+      console.log('[ClaudeAgent] Interrupt requested, queue length:', this.messageQueue.length);
+
+      // FIRST: Abort via AbortController for immediate cancellation
+      if (this.abortController) {
+        console.log('[ClaudeAgent] Aborting via AbortController');
+        this.abortController.abort();
+      }
+
+      // SECOND: Try SDK's interrupt method as backup
       if (this.currentQuery && this.isProcessing) {
-        console.log('[ClaudeAgent] Interrupting current query, queue length:', this.messageQueue.length);
+        console.log('[ClaudeAgent] Calling SDK interrupt method');
 
         // Add timeout to prevent hanging forever
         const interruptPromise = this.currentQuery.interrupt();
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Interrupt timeout')), 5000)
+          setTimeout(() => reject(new Error('Interrupt timeout')), 1000)
         );
 
         try {
           await Promise.race([interruptPromise, timeoutPromise]);
+          console.log('[ClaudeAgent] SDK interrupt completed successfully');
         } catch (error: any) {
           if (error.message === 'Interrupt timeout') {
-            console.warn('[ClaudeAgent] Interrupt timed out after 5s, forcing cleanup');
+            console.warn('[ClaudeAgent] SDK interrupt timed out after 1s, relying on AbortController');
           } else {
-            throw error;
+            console.warn('[ClaudeAgent] SDK interrupt error (continuing anyway):', error);
           }
         }
       }
@@ -428,6 +448,7 @@ export class ClaudeAgent extends EventEmitter {
 
       // Clear the query reference and processing flag
       this.currentQuery = null;
+      this.abortController = null;
       this.isProcessing = false;
 
       console.log('[ClaudeAgent] Interrupt complete, messages preserved in queue:', this.messageQueue.length);

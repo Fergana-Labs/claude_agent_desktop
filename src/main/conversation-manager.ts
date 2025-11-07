@@ -296,16 +296,30 @@ export class ConversationManager {
       sessionId: conversation.session_id || undefined,
       parentSessionId: conversation.parent_session_id || undefined,
       mode: (conversation.mode as PermissionMode) || 'default',
-      messages: messages.map(msg => ({
-        id: msg.id,
-        conversationId: msg.conversation_id,
-        role: msg.role,
-        content: msg.content,
-        attachments: msg.attachments ? JSON.parse(msg.attachments) : undefined,
-        timestamp: msg.timestamp,
-        messageType: (msg.message_type as MessageType) || msg.role,
-        metadata: msg.metadata ? JSON.parse(msg.metadata) : undefined,
-      })),
+      messages: messages.map(msg => {
+        let attachments: string[] | undefined = undefined;
+        if (msg.attachments) {
+          try {
+            const parsed = JSON.parse(msg.attachments);
+            // Ensure it's an array, not null or other value
+            attachments = Array.isArray(parsed) ? parsed : undefined;
+          } catch (e) {
+            console.error('Failed to parse attachments:', e);
+            attachments = undefined;
+          }
+        }
+
+        return {
+          id: msg.id,
+          conversationId: msg.conversation_id,
+          role: msg.role,
+          content: msg.content,
+          attachments,
+          timestamp: msg.timestamp,
+          messageType: (msg.message_type as MessageType) || msg.role,
+          metadata: msg.metadata ? JSON.parse(msg.metadata) : undefined,
+        };
+      }),
       totalMessageCount: totalCount.count,
     };
   }
@@ -383,15 +397,15 @@ export class ConversationManager {
 
     // Copy all messages from parent conversation
     const messages = this.db.prepare(`
-      SELECT role, content, attachments, timestamp
+      SELECT role, content, attachments, timestamp, message_type, metadata
       FROM messages
       WHERE conversation_id = ?
       ORDER BY timestamp ASC
     `).all(conversationId) as any[];
 
     const insertMessage = this.db.prepare(`
-      INSERT INTO messages (conversation_id, role, content, attachments, timestamp)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO messages (conversation_id, role, content, attachments, timestamp, message_type, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const msg of messages) {
@@ -400,7 +414,9 @@ export class ConversationManager {
         msg.role,
         msg.content,
         msg.attachments,
-        msg.timestamp
+        msg.timestamp,
+        msg.message_type,
+        msg.metadata
       );
     }
 
