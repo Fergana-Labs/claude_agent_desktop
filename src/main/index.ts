@@ -172,8 +172,10 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
 
     // Helper function to save accumulated text chunk
     const saveTextChunk = async () => {
+      console.log('[saveTextChunk] Called, currentTextChunk length:', currentTextChunk.length, 'trimmed:', currentTextChunk.trim().length);
       if (currentTextChunk.trim() && conversationManager) {
         try {
+          console.log('[saveTextChunk] Saving text chunk:', currentTextChunk.substring(0, 100));
           await conversationManager.saveMessage({
             role: 'assistant',
             content: currentTextChunk,
@@ -181,9 +183,12 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
           }, conversationId);
           mainWindow?.webContents.send('assistant-message-saved', { conversationId });
           currentTextChunk = '';
+          console.log('[saveTextChunk] Saved successfully, cleared currentTextChunk');
         } catch (error) {
           console.error('Error saving text chunk:', error);
         }
+      } else {
+        console.log('[saveTextChunk] Skipping save (empty or no manager)');
       }
     };
 
@@ -262,6 +267,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         mainWindow?.webContents.send('permission-request', { ...request, conversationId });
       },
       onInterrupted: async () => {
+        console.log('[onInterrupted] Interrupted! currentTextChunk length:', currentTextChunk.length);
         // Save any streamed content before interrupting
         await saveTextChunk();
         mainWindow?.webContents.send('message-interrupted', { conversationId });

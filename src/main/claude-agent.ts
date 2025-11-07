@@ -172,11 +172,21 @@ export class ClaudeAgent extends EventEmitter {
         this.processingAttempts = 0;
 
       } catch (error: any) {
-        if (error.name === 'AbortError' || error.message?.includes('interrupt')) {
+        console.log('[ClaudeAgent] Caught error in processQueue:', error.name, error.message);
+        if (error.name === 'AbortError' || error.message?.includes('interrupt') || error.message?.includes('AbortError')) {
           console.log('[ClaudeAgent] Query interrupted, preserving queued messages');
           this.isInterrupted = true;
 
-          // Notify callbacks about interruption, but keep messages in queue
+          // Notify callbacks about interruption for currently processing messages
+          console.log('[ClaudeAgent] Calling onInterrupted for', this.callbackQueue.length, 'callbacks');
+          this.callbackQueue.forEach(callbacks => {
+            if (callbacks.onInterrupted) {
+              console.log('[ClaudeAgent] Calling onInterrupted callback');
+              callbacks.onInterrupted();
+            }
+          });
+
+          // Also notify any queued messages that haven't started processing yet
           this.messageQueue.forEach(msg => {
             if (msg.callbacks.onInterrupted) {
               msg.callbacks.onInterrupted();
@@ -439,7 +449,16 @@ export class ClaudeAgent extends EventEmitter {
     } catch (error) {
       console.error('[ClaudeAgent] Error interrupting query:', error);
     } finally {
-      // Notify all queued messages about interruption
+      // Notify currently processing messages about interruption
+      console.log('[ClaudeAgent] interrupt() finally: Calling onInterrupted for', this.callbackQueue.length, 'callbacks');
+      this.callbackQueue.forEach(callbacks => {
+        if (callbacks.onInterrupted) {
+          console.log('[ClaudeAgent] Calling onInterrupted callback from interrupt()');
+          callbacks.onInterrupted();
+        }
+      });
+
+      // Also notify all queued messages about interruption
       this.messageQueue.forEach(msg => {
         if (msg.callbacks.onInterrupted) {
           msg.callbacks.onInterrupted();
@@ -450,6 +469,12 @@ export class ClaudeAgent extends EventEmitter {
       this.currentQuery = null;
       this.abortController = null;
       this.isProcessing = false;
+
+      // Emit processing-complete event so frontend can update UI
+      this.emit('processing-complete', {
+        interrupted: true,
+        remainingMessages: this.messageQueue.length
+      });
 
       console.log('[ClaudeAgent] Interrupt complete, messages preserved in queue:', this.messageQueue.length);
     }
