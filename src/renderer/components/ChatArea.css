@@ -448,3 +448,139 @@ textarea:disabled {
   line-height: 1.6;
   white-space: pre-wrap;
 }
+
+/* Chat Header with Title */
+.chat-header {
+  background: #2a2a2a;
+  padding: 12px 20px;
+  border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+}
+
+.chat-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.chat-title:hover {
+  background-color: #3e3e42;
+}
+
+.title-edit-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #0e639c;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 6px 10px;
+  outline: none;
+}
+
+/* Find Bar */
+.find-bar {
+  background: #2a2a2a;
+  padding: 8px 16px;
+  border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.find-input {
+  flex: 1;
+  background: #3c3c3c;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+}
+
+.find-input:focus {
+  border-color: #0e639c;
+}
+
+.find-counter {
+  font-size: 12px;
+  color: #888;
+  min-width: 80px;
+  text-align: center;
+}
+
+.find-nav-btn {
+  background: #3e3e42;
+  border: none;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.find-nav-btn:hover:not(:disabled) {
+  background: #4e4e52;
+}
+
+.find-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.find-close-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.find-close-btn:hover {
+  background: #4e4e52;
+  color: #cccccc;
+}
+
+/* Find Match Highlighting */
+.find-match {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 2px 0;
+}
+
+.find-match-current {
+  background-color: #ff9800;
+  color: #000;
+  padding: 2px 0;
+  font-weight: 600;
+}
+
+/* Mode Selector Bar - Moved below input */
+.mode-selector-bar {
+  background: #2a2a2a;
+  padding: 8px 16px;
+  border-top: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

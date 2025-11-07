@@ -197,7 +197,7 @@ export class ConversationManager {
       `).run(timestamp, timestamp, targetConversationId);
 
       // Auto-generate title from first user message
-      this.updateConversationTitle(targetConversationId, message.content);
+      this.autoGenerateConversationTitle(targetConversationId, message.content);
     } else {
       // For assistant messages, only update updated_at
       this.db.prepare(`
@@ -210,7 +210,7 @@ export class ConversationManager {
     return result.lastInsertRowid as number;
   }
 
-  private updateConversationTitle(conversationId: string, firstMessage: string) {
+  private autoGenerateConversationTitle(conversationId: string, firstMessage: string) {
     const messageCount = this.db.prepare(`
       SELECT COUNT(*) as count
       FROM messages
@@ -346,6 +346,14 @@ export class ConversationManager {
       SET mode = ?, updated_at = ?
       WHERE id = ?
     `).run(mode, Date.now(), conversationId);
+  }
+
+  async updateConversationTitle(conversationId: string, title: string): Promise<void> {
+    this.db.prepare(`
+      UPDATE conversations
+      SET title = ?, updated_at = ?
+      WHERE id = ?
+    `).run(title, Date.now(), conversationId);
   }
 
   getCurrentConversationId(): string | null {

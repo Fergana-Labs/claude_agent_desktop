@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Conversation, SearchResult } from '../types';
 import './Sidebar.css';
 
@@ -40,6 +40,9 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState<string>('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Search effect with debouncing
   useEffect(() => {
@@ -172,6 +175,45 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     onDeleteConversation(conversationId);
   };
 
+  const handleRename = (conversationId: string) => {
+    setContextMenu(null);
+    const conv = validatedConversations.find(c => c.id === conversationId);
+    if (conv) {
+      setEditingConversationId(conversationId);
+      setEditingTitle(conv.title);
+      setTimeout(() => titleInputRef.current?.select(), 0);
+    }
+  };
+
+  const handleTitleSave = async (conversationId: string) => {
+    if (!editingTitle.trim()) {
+      setEditingConversationId(null);
+      return;
+    }
+
+    try {
+      await window.electron.updateConversationTitle(conversationId, editingTitle.trim());
+      setEditingConversationId(null);
+      // Trigger conversation list refresh in App component
+      // This happens automatically through onConversationTitleUpdated callback
+      window.dispatchEvent(new Event('conversation-updated'));
+    } catch (error) {
+      console.error('Error updating title:', error);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent, conversationId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleTitleSave(conversationId);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      setEditingConversationId(null);
+    }
+  };
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -219,20 +261,35 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           >
             <div className="conversation-info">
               <div className="conversation-title">
-                {conv.title}
-                {conversationsWithActivity.has(conv.id) && (
-                  <span style={{
-                    marginLeft: '8px',
-                    background: '#4a9eff',
-                    color: '#fff',
-                    padding: '2px 6px',
-                    borderRadius: '10px',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    animation: 'pulse 2s infinite'
-                  }}>
-                    New
-                  </span>
+                {editingConversationId === conv.id ? (
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    className="title-edit-input-sidebar"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={(e) => handleTitleKeyDown(e, conv.id)}
+                    onBlur={() => handleTitleSave(conv.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    {conv.title}
+                    {conversationsWithActivity.has(conv.id) && (
+                      <span style={{
+                        marginLeft: '8px',
+                        background: '#4a9eff',
+                        color: '#fff',
+                        padding: '2px 6px',
+                        borderRadius: '10px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        animation: 'pulse 2s infinite'
+                      }}>
+                        New
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
               {conv.matchSnippet && (
@@ -283,6 +340,19 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             minWidth: '150px'
           }}
         >
+          <div
+            onClick={() => handleRename(contextMenu.conversationId)}
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              color: '#fff',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+          >
+            Rename
+          </div>
           <div
             onClick={() => handleFork(contextMenu.conversationId)}
             style={{

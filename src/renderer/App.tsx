@@ -13,6 +13,7 @@ function App() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [conversationsWithActivity, setConversationsWithActivity] = useState<Set<string>>(new Set());
+  const [showFindBar, setShowFindBar] = useState(false);
   const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void } | null>(null);
 
   useEffect(() => {
@@ -62,9 +63,27 @@ function App() {
         }
       }
 
-      // Esc: Interrupt current message (works everywhere, including textarea)
+      // Cmd-F / Ctrl-F: Open find bar (don't trigger in input fields)
+      if (cmdOrCtrl && e.key === 'f' && !isInInputField) {
+        console.log('[Keyboard] Cmd-F triggered');
+        e.preventDefault();
+        setShowFindBar(true);
+      }
+
+      // Esc: Close find bar first, then interrupt message
+      // Note: Escape in find bar itself will stopPropagation, so this won't run
       if (e.key === 'Escape') {
         console.log('[Keyboard] Escape key detected!');
+
+        // If find bar is open, close it instead of interrupting
+        if (showFindBar) {
+          console.log('[Keyboard] Closing find bar');
+          e.preventDefault();
+          setShowFindBar(false);
+          return;
+        }
+
+        // Otherwise interrupt message
         console.log('[Keyboard] Current conversation ID:', currentConversation?.id);
         e.preventDefault();
         if (currentConversation?.id) {
@@ -132,7 +151,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentConversation]);
+  }, [currentConversation, showFindBar]);
 
   const loadConversations = async () => {
     try {
@@ -307,6 +326,9 @@ function App() {
           onMessageSent={loadConversations}
           onLoadMoreMessages={handleLoadMoreMessages}
           onChatAreaFocus={() => sidebarRef.current?.clearFocus()}
+          showFindBar={showFindBar}
+          onCloseFindBar={() => setShowFindBar(false)}
+          onConversationTitleUpdated={loadConversations}
         />
       )}
     </div>

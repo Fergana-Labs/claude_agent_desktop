@@ -600,3 +600,16 @@ ipcMain.handle('deny-permission', async (event, permissionId: string, conversati
   await agentManager.denyPermission(targetConversationId, permissionId);
   return { success: true };
 });
+
+// Update conversation title
+ipcMain.handle('update-conversation-title', async (event, conversationId: string, title: string) => {
+  if (!conversationManager) {
+    throw new Error('Conversation manager not initialized');
+  }
+
+  await conversationManager.updateConversationTitle(conversationId, title);
+
+  // Return updated conversation to refresh UI
+  const updatedConversation = await conversationManager.getConversation(conversationId);
+  return { success: true, conversation: updatedConversation };
+});

@@ -12,9 +12,12 @@ interface ChatAreaProps {
   onMessageSent: () => void;
   onLoadMoreMessages?: (conversationId: string, offset: number) => Promise<void>;
   onChatAreaFocus?: () => void;
+  showFindBar?: boolean;
+  onCloseFindBar?: () => void;
+  onConversationTitleUpdated?: () => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages, onChatAreaFocus }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages, onChatAreaFocus, showFindBar, onCloseFindBar, onConversationTitleUpdated }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -28,12 +31,19 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [showAutoAcceptWarning, setShowAutoAcceptWarning] = useState(false);
   const [dontShowAgainChecked, setDontShowAgainChecked] = useState(false);
   const [pendingMode, setPendingMode] = useState<PermissionMode | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [findQuery, setFindQuery] = useState('');
+  const [findMatches, setFindMatches] = useState<{ element: HTMLElement; index: number }[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
   const dragCounterRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const streamingUpdateScheduledRef = useRef(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const findInputRef = useRef<HTMLInputElement>(null);
 
   // Store per-conversation state
   const conversationInputsRef = useRef<Map<string, string>>(new Map());
@@ -394,6 +404,172 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     setAttachedFiles(attachedFiles.filter((_, i) => i !== index));
   };
 
+  // Title editing handlers
+  const handleTitleClick = () => {
+    if (conversation) {
+      setEditedTitle(conversation.title);
+      setIsEditingTitle(true);
+      setTimeout(() => titleInputRef.current?.select(), 0);
+    }
+  };
+
+  const handleTitleSave = async () => {
+    if (!conversation || !editedTitle.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+
+    try {
+      await window.electron.updateConversationTitle(conversation.id, editedTitle.trim());
+      setIsEditingTitle(false);
+      onConversationTitleUpdated?.();
+    } catch (error) {
+      console.error('Error updating title:', error);
+    }
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTitleSave();
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      setIsEditingTitle(false);
+    }
+  };
+
+  // Find functionality handlers
+  const performFind = (query: string) => {
+    if (!messagesContainerRef.current || !query) {
+      setFindMatches([]);
+      setCurrentMatchIndex(0);
+      // Clear existing highlights
+      const highlighted = messagesContainerRef.current?.querySelectorAll('.find-match, .find-match-current');
+      highlighted?.forEach(el => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+          parent.normalize();
+        }
+      });
+      return;
+    }
+
+    // Search through all message content
+    const matches: { element: HTMLElement; index: number }[] = [];
+    const messages = messagesContainerRef.current.querySelectorAll('.message-content, .thinking-content, .tool-use-content, .tool-result-content, .error-content');
+
+    messages.forEach((messageEl, msgIndex) => {
+      const textContent = messageEl.textContent || '';
+      const lowerQuery = query.toLowerCase();
+      const lowerContent = textContent.toLowerCase();
+      let index = lowerContent.indexOf(lowerQuery);
+
+      while (index !== -1) {
+        matches.push({ element: messageEl as HTMLElement, index });
+        index = lowerContent.indexOf(lowerQuery, index + 1);
+      }
+    });
+
+    setFindMatches(matches);
+    setCurrentMatchIndex(matches.length > 0 ? 0 : -1);
+
+    // Highlight matches
+    highlightMatches(matches, 0);
+  };
+
+  const highlightMatches = (matches: { element: HTMLElement; index: number }[], currentIndex: number) => {
+    // First, clear all existing highlights
+    if (messagesContainerRef.current) {
+      const highlighted = messagesContainerRef.current.querySelectorAll('.find-match, .find-match-current');
+      highlighted.forEach(el => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+          parent.normalize();
+        }
+      });
+    }
+
+    // Apply new highlights
+    matches.forEach((match, idx) => {
+      const element = match.element;
+      const textContent = element.textContent || '';
+      const query = findQuery;
+
+      if (!query) return;
+
+      // Create a highlighted version
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const parts = textContent.split(regex);
+
+      // Clear element and rebuild with highlights
+      element.innerHTML = '';
+      parts.forEach(part => {
+        if (part.toLowerCase() === query.toLowerCase()) {
+          const span = document.createElement('span');
+          span.className = idx === currentIndex ? 'find-match-current' : 'find-match';
+          span.textContent = part;
+          element.appendChild(span);
+        } else {
+          element.appendChild(document.createTextNode(part));
+        }
+      });
+    });
+
+    // Scroll to current match
+    if (matches.length > 0 && currentIndex >= 0 && currentIndex < matches.length) {
+      const currentMatchEl = matches[currentIndex].element.querySelector('.find-match-current');
+      currentMatchEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const handleFindNext = () => {
+    if (findMatches.length === 0) return;
+    const nextIndex = (currentMatchIndex + 1) % findMatches.length;
+    setCurrentMatchIndex(nextIndex);
+    highlightMatches(findMatches, nextIndex);
+  };
+
+  const handleFindPrevious = () => {
+    if (findMatches.length === 0) return;
+    const prevIndex = (currentMatchIndex - 1 + findMatches.length) % findMatches.length;
+    setCurrentMatchIndex(prevIndex);
+    highlightMatches(findMatches, prevIndex);
+  };
+
+  const handleFindKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleFindPrevious();
+      } else {
+        handleFindNext();
+      }
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      onCloseFindBar?.();
+    }
+  };
+
+  // Effect to perform find when query changes
+  useEffect(() => {
+    if (showFindBar) {
+      performFind(findQuery);
+    }
+  }, [findQuery, showFindBar]);
+
+  // Effect to focus find input when find bar opens
+  useEffect(() => {
+    if (showFindBar) {
+      setTimeout(() => findInputRef.current?.focus(), 0);
+    } else {
+      // Clear highlights when find bar closes
+      setFindQuery('');
+      setFindMatches([]);
+    }
+  }, [showFindBar]);
+
   // Drag and drop handlers
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -603,46 +779,52 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           </div>
         </div>
       )}
-      {/* Mode Selector Bar */}
-      <div style={{
-        background: '#2a2a2a',
-        padding: '8px 16px',
-        borderBottom: '1px solid #444',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        <span style={{ color: '#888', fontSize: '13px' }}>Mode:</span>
-        <select
-          value={mode}
-          onChange={(e) => handleModeChange(e.target.value as PermissionMode)}
-          disabled={!folderExists}
-          style={{
-            background: '#1e1e1e',
-            border: `1px solid ${getModeColor(mode)}`,
-            color: getModeColor(mode),
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '13px',
-            cursor: folderExists ? 'pointer' : 'not-allowed',
-          }}
-        >
-          <option value="default">Ask for Permissions</option>
-          <option value="acceptEdits">Accept Edits Only</option>
-          <option value="bypassPermissions">Auto-Accept All</option>
-          <option value="plan">Plan Mode</option>
-        </select>
-        <div style={{
-          background: getModeColor(mode),
-          color: '#fff',
-          padding: '2px 8px',
-          borderRadius: '10px',
-          fontSize: '11px',
-          fontWeight: 'bold'
-        }}>
-          {getModeLabel(mode)}
-        </div>
+
+      {/* Title Header Bar */}
+      <div className="chat-header">
+        {isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            type="text"
+            className="title-edit-input"
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onKeyDown={handleTitleKeyDown}
+            onBlur={handleTitleSave}
+          />
+        ) : (
+          <h3 className="chat-title" onClick={handleTitleClick}>
+            {conversation?.title || 'New Conversation'}
+          </h3>
+        )}
       </div>
+
+      {/* Find Bar */}
+      {showFindBar && (
+        <div className="find-bar">
+          <input
+            ref={findInputRef}
+            type="text"
+            className="find-input"
+            placeholder="Find in conversation..."
+            value={findQuery}
+            onChange={(e) => setFindQuery(e.target.value)}
+            onKeyDown={handleFindKeyDown}
+          />
+          <span className="find-counter">
+            {findMatches.length > 0 ? `${currentMatchIndex + 1} of ${findMatches.length}` : 'No matches'}
+          </span>
+          <button className="find-nav-btn" onClick={handleFindPrevious} disabled={findMatches.length === 0}>
+            ↑
+          </button>
+          <button className="find-nav-btn" onClick={handleFindNext} disabled={findMatches.length === 0}>
+            ↓
+          </button>
+          <button className="find-close-btn" onClick={onCloseFindBar}>
+            ×
+          </button>
+        </div>
+      )}
 
       {!folderExists && conversation?.projectPath && (
         <div style={{
@@ -892,6 +1074,40 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
               Send
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Mode Selector Bar - Moved below input */}
+      <div className="mode-selector-bar">
+        <span style={{ color: '#888', fontSize: '13px' }}>Mode:</span>
+        <select
+          value={mode}
+          onChange={(e) => handleModeChange(e.target.value as PermissionMode)}
+          disabled={!folderExists}
+          style={{
+            background: '#1e1e1e',
+            border: `1px solid ${getModeColor(mode)}`,
+            color: getModeColor(mode),
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '13px',
+            cursor: folderExists ? 'pointer' : 'not-allowed',
+          }}
+        >
+          <option value="default">Ask for Permissions</option>
+          <option value="acceptEdits">Accept Edits Only</option>
+          <option value="bypassPermissions">Auto-Accept All</option>
+          <option value="plan">Plan Mode</option>
+        </select>
+        <div style={{
+          background: getModeColor(mode),
+          color: '#fff',
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+          fontWeight: 'bold'
+        }}>
+          {getModeLabel(mode)}
         </div>
       </div>
     </div>

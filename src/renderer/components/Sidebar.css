@@ -224,3 +224,15 @@
 .settings-btn:hover {
   background-color: #4e4e52;
 }
+
+.title-edit-input-sidebar {
+  background: #3c3c3c;
+  border: 1px solid #0e639c;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 14px;
+  padding: 4px 8px;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+}
