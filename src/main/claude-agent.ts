@@ -270,10 +270,24 @@ export class ClaudeAgent extends EventEmitter {
     console.log('[ClaudeAgent] PreToolUse hook called:', {
       toolName: hookInput.tool_name,
       toolUseID,
+      mode: this.mode,
       inputKeys: typeof hookInput.tool_input === 'object' && hookInput.tool_input !== null
         ? Object.keys(hookInput.tool_input)
         : 'not an object',
     });
+
+    // If in bypass mode, auto-allow everything
+    console.log('henry we r in mode', this.mode)
+    if (this.mode === 'bypassPermissions') {
+      console.log('[ClaudeAgent] bypassPermissions mode active, auto-allowing');
+      return {
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+        }
+      };
+    }
 
     // Get callbacks for current message being processed
     const callbacks = this.callbackQueue[this.currentCallbackIndex] || {};
