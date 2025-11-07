@@ -1121,6 +1121,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         }}>
           {getModeLabel(mode)}
         </div>
+        <span className="keyboard-hint">Shift+Tab to cycle</span>
       </div>
     </div>
   );

@@ -230,7 +230,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             ref={searchInputRef}
             type="text"
             className="search-input"
-            placeholder="Search messages..."
+            placeholder={`Search... (${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+K' : 'Ctrl+K'})`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -253,6 +253,9 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         </div>
         <button className="new-conversation-btn" onClick={onNewConversation}>
           + New Chat
+          <span className="keyboard-hint">
+            {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+T' : 'Ctrl+T'}
+          </span>
         </button>
       </div>
 
