@@ -96,15 +96,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     // Set up interruption listener
     const removeInterruptListener = window.electron.onMessageInterrupted((data: { conversationId: string }) => {
-      // Clear loading state for the conversation that was interrupted
-      conversationLoadingRef.current.set(data.conversationId, false);
-      conversationStreamingRef.current.set(data.conversationId, '');
-
-      // Only update UI if this is the currently viewed conversation
-      if (conversation?.id === data.conversationId) {
-        setIsLoading(false);
-        setStreamingContent('');
-      }
+      // The actual cleanup is handled by onProcessingComplete
+      // This event just signals that interruption was requested
+      console.log('[ChatArea] Message interruption requested for:', data.conversationId);
     });
 
     // Set up user message saved listener (triggers immediate conversation refresh and sidebar reorder)
@@ -132,22 +126,29 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     // Set up processing complete listener
     const removeProcessingCompleteListener = window.electron.onProcessingComplete((data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => {
+      console.log('[ChatArea] Processing complete:', { conversationId: data.conversationId, interrupted: data.interrupted, currentConv: conversation?.id });
+
       // Clear loading state for the conversation that completed processing
       conversationLoadingRef.current.set(data.conversationId, false);
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
+        console.log('[ChatArea] Clearing loading state for current conversation');
         setIsLoading(false);
 
-        // If interrupted, clear streaming content and trigger reload to show the saved partial message
+        // Always clear streaming content when processing completes (whether interrupted or not)
+        // This prevents the blinking cursor from persisting
+        conversationStreamingRef.current.set(data.conversationId, '');
+        setStreamingContent('');
+        console.log('[ChatArea] Cleared streaming content');
+
+        // If interrupted, trigger reload to show the saved partial message
         if (data.interrupted) {
-          conversationStreamingRef.current.set(data.conversationId, '');
-          setStreamingContent('');
+          console.log('[ChatArea] Was interrupted, triggering reload');
           // Trigger reload by calling onMessageSent
           onMessageSent();
         }
-        // For normal completion, don't clear streaming content yet - wait for the saved message to load
-        // The content will be cleared when conversation reloads with the new message
+        // For normal completion, the saved message will appear when the conversation naturally reloads
       }
     });
 
@@ -722,7 +723,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             <div className="message-role">Claude</div>
             <div className="message-content">
               <ReactMarkdown>{streamingContent}</ReactMarkdown>
-              <span className="cursor">▊</span>
+              {isLoading && <span className="cursor">▊</span>}
             </div>
           </div>
         )}
