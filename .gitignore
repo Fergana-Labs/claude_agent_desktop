@@ -29,3 +29,6 @@ npm-debug.log*
 
 # User data
 conversations.db
+
+# MCP Configuration (may contain sensitive API keys/tokens)
+.mcp.json

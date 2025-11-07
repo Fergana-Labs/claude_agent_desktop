@@ -10,6 +10,7 @@ interface SidebarProps {
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
   onForkConversation: (id: string) => void;
+  onShowSettings?: () => void;
 }
 
 interface ConversationWithValidity extends Conversation {
@@ -29,6 +30,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   onNewConversation,
   onDeleteConversation,
   onForkConversation,
+  onShowSettings,
 }, ref) => {
   const [validatedConversations, setValidatedConversations] = useState<ConversationWithValidity[]>([]);
   const [contextMenu, setContextMenu] = useState<{ conversationId: string; x: number; y: number } | null>(null);
@@ -176,6 +178,15 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           </div>
         ))}
       </div>
+
+      {/* Settings Footer */}
+      {onShowSettings && (
+        <div className="sidebar-footer">
+          <button className="settings-btn" onClick={onShowSettings}>
+            ⚙️ MCP Settings
+          </button>
+        </div>
+      )}
 
       {/* Context Menu */}
       {contextMenu && (

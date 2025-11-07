@@ -1,4 +1,4 @@
-import { query, Options, SDKMessage, SDKUserMessage, Query } from '@anthropic-ai/claude-agent-sdk';
+import { query, Options, SDKMessage, SDKUserMessage, Query, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -33,6 +33,7 @@ interface ClaudeAgentConfig {
   sessionId?: string | null;
   parentSessionId?: string | null;
   mode?: PermissionMode;
+  mcpServers?: Record<string, McpServerConfig>;
 }
 
 interface QueuedMessage {
@@ -128,6 +129,7 @@ export class ClaudeAgent extends EventEmitter {
           plugins: [
             { type: 'local', path: this.config.pluginsPath }
           ],
+          mcpServers: this.config.mcpServers,
           resume: isFork ? (this.config.parentSessionId || undefined) : (this.currentSessionId || undefined),
           forkSession: isFork || undefined,
           env: {

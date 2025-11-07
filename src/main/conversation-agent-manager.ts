@@ -1,6 +1,7 @@
 import { ClaudeAgent, PermissionMode } from './claude-agent.js';
 import { ConversationManager } from './conversation-manager.js';
 import { EventEmitter } from 'events';
+import { McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 
 interface MessageCallbacks {
   onToken?: (token: string) => void;
@@ -14,6 +15,7 @@ interface MessageCallbacks {
 interface AgentConfig {
   apiKey: string;
   pluginsPath: string;
+  mcpServers?: Record<string, McpServerConfig>;
 }
 
 /**
@@ -66,6 +68,7 @@ export class ConversationAgentManager extends EventEmitter {
       sessionId: conversation.sessionId || null,
       parentSessionId: conversation.parentSessionId || null,
       mode: conversation.mode || 'default',
+      mcpServers: this.config.mcpServers,
     });
 
     // Forward agent events with conversationId

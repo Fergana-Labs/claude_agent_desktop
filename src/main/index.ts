@@ -6,6 +6,8 @@ import { config as loadEnv } from 'dotenv';
 import { existsSync, mkdirSync } from 'fs';
 import { ConversationAgentManager } from './conversation-agent-manager.js';
 import { ConversationManager } from './conversation-manager.js';
+import { McpConfigLoader } from './mcp-config.js';
+import { registerMcpIpcHandlers } from './mcp-ipc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -83,6 +85,15 @@ app.whenReady().then(async () => {
     path.join(app.getPath('userData'), 'conversations.db')
   );
 
+  // Initialize MCP Config Loader
+  const projectPath = process.cwd();
+  const mcpConfigLoader = new McpConfigLoader(projectPath);
+  const mcpServers = await mcpConfigLoader.load();
+  console.log('[Main] Loaded MCP servers:', Object.keys(mcpServers));
+
+  // Register MCP IPC handlers
+  registerMcpIpcHandlers(mcpConfigLoader);
+
   // Initialize Agent Manager
   const pluginsPath = path.join(__dirname, '../../plugins');
   console.log('[Main] Initializing agent manager with plugins path:', pluginsPath);
@@ -96,6 +107,7 @@ app.whenReady().then(async () => {
     {
       apiKey: process.env.ANTHROPIC_API_KEY || '',
       pluginsPath: pluginsPath,
+      mcpServers: mcpServers,
     },
     conversationManager
   );

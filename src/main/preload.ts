@@ -101,6 +101,12 @@ contextBridge.exposeInMainWorld('electron', {
 
   // File operations
   openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
+
+  // MCP configuration
+  mcpGetConfig: () => ipcRenderer.invoke('mcp:getConfig'),
+  mcpSaveConfig: (servers: any) => ipcRenderer.invoke('mcp:saveConfig', servers),
+  mcpValidateConfig: (servers: any) => ipcRenderer.invoke('mcp:validateConfig', servers),
+  mcpFileExists: () => ipcRenderer.invoke('mcp:fileExists'),
 });
 
 // Type definitions for TypeScript
@@ -131,6 +137,10 @@ export interface ElectronAPI {
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;
   openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  mcpGetConfig: () => Promise<{ success: boolean; config: any; error?: string }>;
+  mcpSaveConfig: (servers: any) => Promise<{ success: boolean; error?: string; validationErrors?: string[] }>;
+  mcpValidateConfig: (servers: any) => Promise<{ success: boolean; errors: string[] }>;
+  mcpFileExists: () => Promise<{ success: boolean; exists: boolean; error?: string }>;
 }
 
 declare global {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import FolderSelectionModal from './components/FolderSelectionModal';
+import McpSettings from './components/McpSettings';
 import { Conversation, PermissionMode } from './types';
 import './App.css';
 
@@ -10,6 +11,7 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isElectronReady, setIsElectronReady] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [conversationsWithActivity, setConversationsWithActivity] = useState<Set<string>>(new Set());
   const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void } | null>(null);
 
@@ -286,19 +288,27 @@ function App() {
       <Sidebar
         ref={sidebarRef}
         conversations={conversations}
-        currentConversationId={currentConversation?.id}
+        currentConversationId={showMcpSettings ? undefined : currentConversation?.id}
         conversationsWithActivity={conversationsWithActivity}
-        onSelectConversation={loadConversation}
+        onSelectConversation={(id) => {
+          setShowMcpSettings(false);
+          loadConversation(id);
+        }}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
         onForkConversation={handleForkConversation}
+        onShowSettings={() => setShowMcpSettings(true)}
       />
-      <ChatArea
-        conversation={currentConversation}
-        onMessageSent={loadConversations}
-        onLoadMoreMessages={handleLoadMoreMessages}
-        onChatAreaFocus={() => sidebarRef.current?.clearFocus()}
-      />
+      {showMcpSettings ? (
+        <McpSettings />
+      ) : (
+        <ChatArea
+          conversation={currentConversation}
+          onMessageSent={loadConversations}
+          onLoadMoreMessages={handleLoadMoreMessages}
+          onChatAreaFocus={() => sidebarRef.current?.clearFocus()}
+        />
+      )}
     </div>
   );
 }
