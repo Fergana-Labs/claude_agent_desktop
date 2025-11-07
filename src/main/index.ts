@@ -202,9 +202,11 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     };
 
     await agentManager.sendMessage(conversationId, message, attachments, {
-      onToken: (token: string) => {
-        currentTextChunk += token;
-        mainWindow?.webContents.send('message-token', { token, conversationId });
+      onToken: (accumulatedText: string) => {
+        // Backend now sends the FULL accumulated text, not just deltas
+        // So we can use it directly instead of accumulating
+        currentTextChunk = accumulatedText;
+        mainWindow?.webContents.send('message-token', { token: accumulatedText, conversationId });
       },
       onThinking: async (thinking: string) => {
         // Save accumulated text before thinking
