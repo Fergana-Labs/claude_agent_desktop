@@ -155,21 +155,21 @@ export class ConversationManager {
     }
   }
 
-  private createConversation(): string {
+  private createConversation(mode: PermissionMode = 'default'): string {
     const id = this.generateId();
     const now = Date.now();
 
     this.db.prepare(`
-      INSERT INTO conversations (id, title, created_at, updated_at, last_user_message_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, 'New Conversation', now, now, now);
+      INSERT INTO conversations (id, title, created_at, updated_at, last_user_message_at, mode)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, 'New Conversation', now, now, now, mode);
 
     this.currentConversationId = id;
     return id;
   }
 
-  async newConversation(): Promise<string> {
-    return this.createConversation();
+  async newConversation(mode?: PermissionMode): Promise<string> {
+    return this.createConversation(mode);
   }
 
   async saveMessage(message: Message, conversationId?: string): Promise<number> {

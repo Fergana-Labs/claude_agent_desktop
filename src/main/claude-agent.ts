@@ -1,4 +1,4 @@
-import { query, Options, SDKMessage, SDKUserMessage, Query, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
+import { query, Options, SDKMessage, SDKUserMessage, Query, HookInput, HookJSONOutput, PreToolUseHookInput, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -57,14 +57,23 @@ export class ClaudeAgent extends EventEmitter {
   private currentCallbackIndex: number = 0;
   private streamedTextByCallback: Map<number, string> = new Map();
   private needsReload: boolean = false;
+  private pendingPermissionRequests: Map<string, {
+    resolve: (result: HookJSONOutput) => void;
+    reject: (error: Error) => void;
+    toolName: string;
+    toolInput: unknown;
+  }> = new Map();
 
   constructor(config: ClaudeAgentConfig) {
     super();
     this.config = config;
+    console.log('this config is config, and config is', config)
 
     // Initialize session ID and mode from config (for session restoration)
     this.currentSessionId = config.sessionId || null;
+    console.log('config mode is ', config.mode)
     this.mode = config.mode || 'default';
+    console.log('this mode is', this.mode)
 
     console.log('[ClaudeAgent] Initialized with:', {
       projectPath: config.projectPath,
@@ -97,6 +106,7 @@ export class ClaudeAgent extends EventEmitter {
 
   // Process queued messages using async generator pattern
   private async processQueue(): Promise<void> {
+    console.log('henry we are processing the damn queue');
     if (this.isProcessing) return;
     this.isProcessing = true;
     this.isInterrupted = false;
@@ -133,6 +143,7 @@ export class ClaudeAgent extends EventEmitter {
           includePartialMessages: true,  // Enable real-time streaming
           cwd: projectPath,
           settingSources: [],
+          permissionMode: this.mode,  // Pass permission mode in options
           // Allow all tools by not specifying allowedTools
           plugins: [
             { type: 'local', path: this.config.pluginsPath }
@@ -143,6 +154,14 @@ export class ClaudeAgent extends EventEmitter {
           env: {
             PATH: process.env.PATH,
             ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+          },
+          // PreToolUse hook
+          hooks: {
+            PreToolUse: [
+              {
+                hooks: [this.preToolUseHook.bind(this)]
+              }
+            ]
           },
         };
 
@@ -164,6 +183,8 @@ export class ClaudeAgent extends EventEmitter {
 
         // Use streaming input mode with async generator
         this.currentQuery = query({ prompt: messageGenerator, options });
+
+        console.log('henry we are about to set permission mode as ', this.mode)
 
         // Set permission mode on the query
         this.currentQuery.setPermissionMode(this.mode);
@@ -236,6 +257,93 @@ export class ClaudeAgent extends EventEmitter {
     this.emit('processing-complete', {
       interrupted: this.isInterrupted,
       remainingMessages: this.messageQueue.length
+    });
+  }
+
+  // PreToolUse hook implementation
+  private async preToolUseHook(
+    input: HookInput,
+    toolUseID: string | undefined,
+    options: {
+      signal: AbortSignal;
+    }
+  ): Promise<HookJSONOutput> {
+    // Type guard to ensure this is a PreToolUse hook
+    if (input.hook_event_name !== 'PreToolUse') {
+      console.warn('[ClaudeAgent] preToolUseHook called with wrong event:', input.hook_event_name);
+      return { continue: true };
+    }
+
+    const hookInput = input as PreToolUseHookInput;
+
+    console.log('henry we are calling preToolUse')
+    console.log('[ClaudeAgent] PreToolUse hook called:', {
+      toolName: hookInput.tool_name,
+      toolUseID,
+      mode: this.mode,
+      inputKeys: typeof hookInput.tool_input === 'object' && hookInput.tool_input !== null
+        ? Object.keys(hookInput.tool_input)
+        : 'not an object',
+    });
+
+    // If in bypass mode, auto-allow everything
+    console.log('henry we r in mode', this.mode)
+    if (this.mode === 'bypassPermissions') {
+      console.log('[ClaudeAgent] bypassPermissions mode active, auto-allowing');
+      return {
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+        }
+      };
+    }
+
+    // Get callbacks for current message being processed
+    const callbacks = this.callbackQueue[this.currentCallbackIndex] || {};
+
+    // If no callback registered, auto-allow
+    if (!callbacks.onPermissionRequest) {
+      console.warn('[ClaudeAgent] No onPermissionRequest callback registered, auto-allowing');
+      return {
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+        }
+      };
+    }
+
+    // Create a unique ID for this request
+    const requestId = toolUseID || `hook-${Date.now()}-${Math.random()}`;
+
+    // Create a promise that will be resolved when the user responds
+    return new Promise<HookJSONOutput>((resolve, reject) => {
+      // Store the resolver
+      this.pendingPermissionRequests.set(requestId, {
+        resolve,
+        reject,
+        toolName: hookInput.tool_name,
+        toolInput: hookInput.tool_input,
+      });
+
+      // Trigger the permission request callback
+      const request: PermissionRequest = {
+        id: requestId,
+        tool: hookInput.tool_name,
+        action: hookInput.tool_name,
+        details: JSON.stringify(hookInput.tool_input, null, 2),
+        timestamp: Date.now(),
+      };
+
+      console.log('[ClaudeAgent] Triggering onPermissionRequest:', request);
+      callbacks.onPermissionRequest!(request);
+
+      // Handle abort signal
+      options.signal.addEventListener('abort', () => {
+        this.pendingPermissionRequests.delete(requestId);
+        reject(new Error('Permission request aborted'));
+      });
     });
   }
 
@@ -407,8 +515,19 @@ export class ClaudeAgent extends EventEmitter {
         break;
 
       case 'system':
-        // System initialization
-        console.log('[ClaudeAgent] System message received');
+        // System initialization and hook responses
+        const systemMsg = message as any;
+        if (systemMsg.subtype === 'hook_response') {
+          console.log('[ClaudeAgent] Hook response received:', {
+            hook_name: systemMsg.hook_name,
+            hook_event: systemMsg.hook_event,
+            exit_code: systemMsg.exit_code,
+            stdout: systemMsg.stdout,
+            stderr: systemMsg.stderr,
+          });
+        } else {
+          console.log('[ClaudeAgent] System message received');
+        }
         break;
 
       default:
@@ -482,6 +601,54 @@ export class ClaudeAgent extends EventEmitter {
       });
 
       console.log('[ClaudeAgent] Interrupt complete, messages preserved in queue:', this.messageQueue.length);
+    }
+  }
+
+  // Respond to a permission request
+  async respondToPermissionRequest(
+    requestId: string,
+    approved: boolean,
+    updatedInput?: Record<string, unknown>
+  ): Promise<void> {
+    console.log('[ClaudeAgent] respondToPermissionRequest called:', {
+      requestId,
+      approved,
+      hasUpdatedInput: !!updatedInput,
+    });
+
+    const pendingRequest = this.pendingPermissionRequests.get(requestId);
+
+    if (!pendingRequest) {
+      console.warn('[ClaudeAgent] No pending permission request found for ID:', requestId);
+      return;
+    }
+
+    // Remove from pending requests
+    this.pendingPermissionRequests.delete(requestId);
+
+    // Resolve the promise with the appropriate HookJSONOutput
+    if (approved) {
+      const result: HookJSONOutput = {
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'allow',
+          updatedInput: updatedInput,
+        }
+      };
+      console.log('[ClaudeAgent] Resolving permission request as allowed');
+      pendingRequest.resolve(result);
+    } else {
+      const result: HookJSONOutput = {
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: 'User denied permission',
+        }
+      };
+      console.log('[ClaudeAgent] Resolving permission request as denied');
+      pendingRequest.resolve(result);
     }
   }
 

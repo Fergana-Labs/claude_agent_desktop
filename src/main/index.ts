@@ -372,13 +372,14 @@ ipcMain.handle('get-conversation', async (event, conversationId: string, limit?:
   }
 });
 
-ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string) => {
+ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string, mode?: string) => {
   if (!conversationManager) {
     throw new Error('Services not initialized');
   }
 
-  // Create new conversation
-  const conversationId = await conversationManager.newConversation();
+  // Create new conversation with optional mode
+  console.log('henry we are about to make a new conversation via conversationManager.')
+  const conversationId = await conversationManager.newConversation(mode as any);
 
   // Set as active conversation
   conversationManager.setCurrentConversationId(conversationId);
@@ -545,11 +546,11 @@ ipcMain.handle('set-mode', async (event, mode: string, conversationId: string) =
     throw new Error('No conversation ID provided');
   }
 
+  // Save mode to database FIRST, so getOrCreateAgent reads the correct mode
+  await conversationManager.updateMode(conversationId, mode as any);
+
   // Update agent mode (will get or create agent for this conversation)
   await agentManager.setMode(conversationId, mode as any);
-
-  // Save mode to database
-  await conversationManager.updateMode(conversationId, mode as any);
 
   return { success: true };
 });
@@ -569,35 +570,50 @@ ipcMain.handle('get-mode', async (event, conversationId: string) => {
   return { mode: conversation?.mode || 'default' };
 });
 
-// Approve permission
+// Respond to permission request (approve or deny)
+ipcMain.handle('respond-to-permission', async (event, data: { requestId: string; approved: boolean; conversationId?: string; updatedInput?: Record<string, unknown> }) => {
+  if (!agentManager || !conversationManager) {
+    throw new Error('Services not initialized');
+  }
+
+  const { requestId, approved, conversationId, updatedInput } = data;
+
+  // If no conversationId provided, use the current active conversation
+  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+  if (!targetConversationId) {
+    throw new Error('No active conversation');
+  }
+
+  agentManager.respondToPermissionRequest(targetConversationId, requestId, approved, updatedInput);
+  return { success: true };
+});
+
+// Legacy handlers for backwards compatibility
 ipcMain.handle('approve-permission', async (event, permissionId: string, conversationId?: string) => {
   if (!agentManager || !conversationManager) {
     throw new Error('Services not initialized');
   }
 
-  // If no conversationId provided, use the current active conversation
   const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
   if (!targetConversationId) {
     throw new Error('No active conversation');
   }
 
-  await agentManager.approvePermission(targetConversationId, permissionId);
+  agentManager.respondToPermissionRequest(targetConversationId, permissionId, true);
   return { success: true };
 });
 
-// Deny permission
 ipcMain.handle('deny-permission', async (event, permissionId: string, conversationId?: string) => {
   if (!agentManager || !conversationManager) {
     throw new Error('Services not initialized');
   }
 
-  // If no conversationId provided, use the current active conversation
   const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
   if (!targetConversationId) {
     throw new Error('No active conversation');
   }
 
-  await agentManager.denyPermission(targetConversationId, permissionId);
+  agentManager.respondToPermissionRequest(targetConversationId, permissionId, false);
   return { success: true };
 });
 

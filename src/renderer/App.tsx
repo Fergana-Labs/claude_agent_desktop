@@ -224,9 +224,9 @@ function App() {
     setShowFolderModal(true);
   };
 
-  const handleFolderSelected = async (folderPath: string) => {
+  const handleFolderSelected = async (folderPath: string, mode?: string) => {
     try {
-      const result = await window.electron.newConversationWithFolder(folderPath);
+      const result = await window.electron.newConversationWithFolder(folderPath, mode);
       setShowFolderModal(false);
       await loadConversations();
 

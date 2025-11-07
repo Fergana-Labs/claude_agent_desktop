@@ -79,8 +79,8 @@ contextBridge.exposeInMainWorld('electron', {
   getConversation: (conversationId: string, limit?: number, offset?: number) =>
     ipcRenderer.invoke('get-conversation', conversationId, limit, offset),
 
-  newConversationWithFolder: (folderPath: string) =>
-    ipcRenderer.invoke('new-conversation-with-folder', folderPath),
+  newConversationWithFolder: (folderPath: string, mode?: string) =>
+    ipcRenderer.invoke('new-conversation-with-folder', folderPath, mode),
 
   deleteConversation: (conversationId: string) =>
     ipcRenderer.invoke('delete-conversation', conversationId),
@@ -131,7 +131,7 @@ export interface ElectronAPI {
   getConversations: () => Promise<any[]>;
   searchConversations: (query: string, caseSensitive: boolean) => Promise<any[]>;
   getConversation: (conversationId: string, limit?: number, offset?: number) => Promise<any>;
-  newConversationWithFolder: (folderPath: string) => Promise<{ success: boolean; conversationId: string }>;
+  newConversationWithFolder: (folderPath: string, mode?: string) => Promise<{ success: boolean; conversationId: string }>;
   deleteConversation: (conversationId: string) => Promise<{ success: boolean }>;
   forkConversation: (conversationId: string) => Promise<any>;
   selectFolder: () => Promise<{ success: boolean; path?: string }>;
