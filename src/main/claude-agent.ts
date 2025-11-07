@@ -1,8 +1,10 @@
 import { query, Options, SDKMessage, SDKUserMessage, Query, HookInput, HookJSONOutput, PreToolUseHookInput, McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
+import type { ContentBlockParam, ImageBlockParam, TextBlockParam } from '@anthropic-ai/sdk/resources/messages';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { EventEmitter } from 'events';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -361,21 +363,85 @@ export class ClaudeAgent extends EventEmitter {
     console.log('[ClaudeAgent] Processing batch of', messagesToProcess.length, 'messages');
 
     for (const queued of messagesToProcess) {
-      // Build message content
-      let content = queued.message;
+      // Build message content - handle images vs non-images differently
+      let messageContent: string | ContentBlockParam[];
 
-      // Add attachment context if files are provided
       if (queued.attachments.length > 0) {
-        content += '\n\nAttached files:\n';
+        // Separate images from non-image files
+        const imageFiles: string[] = [];
+        const nonImageFiles: string[] = [];
+
         queued.attachments.forEach(file => {
-          content += `- ${file}\n`;
+          if (isImageFile(file)) {
+            imageFiles.push(file);
+          } else {
+            nonImageFiles.push(file);
+          }
         });
+
+        // Build content blocks array
+        const contentBlocks: ContentBlockParam[] = [];
+
+        // Add user message text as first block
+        contentBlocks.push({
+          type: 'text',
+          text: queued.message
+        } as TextBlockParam);
+
+        // Add images as image blocks
+        for (const imagePath of imageFiles) {
+          try {
+            // Check if file exists
+            if (!fs.existsSync(imagePath)) {
+              console.warn(`[ClaudeAgent] Image file not found: ${imagePath}`);
+              nonImageFiles.push(imagePath); // Fall back to text path
+              continue;
+            }
+
+            // Read image file and convert to base64
+            const imageBuffer = fs.readFileSync(imagePath);
+            const base64Data = imageBuffer.toString('base64');
+            const mediaType = getImageMediaType(imagePath);
+
+            contentBlocks.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mediaType,
+                data: base64Data
+              }
+            } as ImageBlockParam);
+
+            console.log(`[ClaudeAgent] Added image: ${path.basename(imagePath)} (${mediaType})`);
+          } catch (error) {
+            console.error(`[ClaudeAgent] Error reading image file ${imagePath}:`, error);
+            nonImageFiles.push(imagePath); // Fall back to text path
+          }
+        }
+
+        // Add non-image files as text list
+        if (nonImageFiles.length > 0) {
+          let attachmentText = '\n\nAttached files:\n';
+          nonImageFiles.forEach(file => {
+            attachmentText += `- ${file}\n`;
+          });
+          contentBlocks.push({
+            type: 'text',
+            text: attachmentText
+          } as TextBlockParam);
+        }
+
+        messageContent = contentBlocks;
+      } else {
+        // No attachments, just send message as string
+        messageContent = queued.message;
       }
 
       console.log('[ClaudeAgent] Yielding message to SDK:', {
-        contentPreview: content.substring(0, 100),
+        contentPreview: typeof messageContent === 'string' ? messageContent.substring(0, 100) : `${messageContent.length} content blocks`,
         hasAttachments: queued.attachments.length > 0,
         attachmentCount: queued.attachments.length,
+        imageCount: queued.attachments.filter(f => isImageFile(f)).length,
       });
 
       // Yield SDKUserMessage object
@@ -384,7 +450,7 @@ export class ClaudeAgent extends EventEmitter {
         session_id: this.currentSessionId || 'new-session',
         message: {
           role: 'user',
-          content: content
+          content: messageContent
         },
         parent_tool_use_id: null,
       } as SDKUserMessage;
@@ -745,5 +811,28 @@ export class ClaudeAgent extends EventEmitter {
 
   async denyPermission(permissionId: string): Promise<void> {
     // Permission denial handled by SDK mode
+  }
+}
+
+// Helper functions for image handling
+function isImageFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+}
+
+function getImageMediaType(filePath: string): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' {
+  const ext = path.extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.png':
+      return 'image/png';
+    case '.gif':
+      return 'image/gif';
+    case '.webp':
+      return 'image/webp';
+    default:
+      return 'image/png'; // fallback
   }
 }

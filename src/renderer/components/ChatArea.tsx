@@ -801,8 +801,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(74, 158, 255, 0.1)',
-          border: '2px dashed #4a9eff',
+          backgroundColor: 'rgba(74, 158, 255, 0.15)',
           zIndex: 1000,
           display: 'flex',
           alignItems: 'center',
@@ -810,10 +809,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           pointerEvents: 'none'
         }}>
           <div style={{
-            background: 'rgba(0, 0, 0, 0.8)',
+            background: '#4a9eff',
             padding: '20px 40px',
             borderRadius: '8px',
-            color: '#4a9eff',
+            color: '#ffffff',
             fontSize: '18px',
             fontWeight: 'bold'
           }}>
