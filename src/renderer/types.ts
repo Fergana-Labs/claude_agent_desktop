@@ -22,6 +22,8 @@ export interface Conversation {
   sessionId?: string;
   parentSessionId?: string;
   mode?: PermissionMode;
+  isPinned?: boolean;
+  pinnedAt?: number;
   messages: Message[];
   totalMessageCount?: number;
 }

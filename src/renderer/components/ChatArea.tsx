@@ -433,6 +433,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       e.preventDefault();
       handleTitleSave();
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       e.stopPropagation();
       setIsEditingTitle(false);
     }
@@ -561,6 +562,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         handleFindNext();
       }
     } else if (e.key === 'Escape') {
+      e.preventDefault();
       e.stopPropagation();
       onCloseFindBar?.();
     }

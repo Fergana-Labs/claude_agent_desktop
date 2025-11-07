@@ -613,3 +613,23 @@ ipcMain.handle('update-conversation-title', async (event, conversationId: string
   const updatedConversation = await conversationManager.getConversation(conversationId);
   return { success: true, conversation: updatedConversation };
 });
+
+// Pin conversation
+ipcMain.handle('pin-conversation', async (event, conversationId: string) => {
+  if (!conversationManager) {
+    throw new Error('Conversation manager not initialized');
+  }
+
+  await conversationManager.pinConversation(conversationId);
+  return { success: true };
+});
+
+// Unpin conversation
+ipcMain.handle('unpin-conversation', async (event, conversationId: string) => {
+  if (!conversationManager) {
+    throw new Error('Conversation manager not initialized');
+  }
+
+  await conversationManager.unpinConversation(conversationId);
+  return { success: true };
+});

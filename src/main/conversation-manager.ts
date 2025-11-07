@@ -24,6 +24,8 @@ interface Conversation {
   sessionId?: string;
   parentSessionId?: string;
   mode?: PermissionMode;
+  isPinned?: boolean;
+  pinnedAt?: number;
   messages: Message[];
   totalMessageCount?: number;
 }
@@ -61,6 +63,8 @@ export class ConversationManager {
       const hasMode = tableInfo.some(col => col.name === 'mode');
       const hasLastUserMessageAt = tableInfo.some(col => col.name === 'last_user_message_at');
       const hasParentSessionId = tableInfo.some(col => col.name === 'parent_session_id');
+      const hasIsPinned = tableInfo.some(col => col.name === 'is_pinned');
+      const hasPinnedAt = tableInfo.some(col => col.name === 'pinned_at');
 
       if (!hasProjectPath) {
         this.db.exec('ALTER TABLE conversations ADD COLUMN project_path TEXT');
@@ -82,6 +86,14 @@ export class ConversationManager {
 
       if (!hasParentSessionId) {
         this.db.exec('ALTER TABLE conversations ADD COLUMN parent_session_id TEXT');
+      }
+
+      if (!hasIsPinned) {
+        this.db.exec('ALTER TABLE conversations ADD COLUMN is_pinned INTEGER DEFAULT 0');
+      }
+
+      if (!hasPinnedAt) {
+        this.db.exec('ALTER TABLE conversations ADD COLUMN pinned_at INTEGER');
       }
     } catch (error) {
       console.error('Error during database migration:', error);
@@ -231,7 +243,10 @@ export class ConversationManager {
   async getConversations(): Promise<Conversation[]> {
     const conversations = this.db.prepare(`
       SELECT * FROM conversations
-      ORDER BY COALESCE(last_user_message_at, updated_at, created_at) DESC
+      ORDER BY
+        is_pinned DESC,
+        CASE WHEN is_pinned = 1 THEN pinned_at ELSE NULL END ASC,
+        CASE WHEN is_pinned = 0 OR is_pinned IS NULL THEN COALESCE(last_user_message_at, updated_at, created_at) ELSE NULL END DESC
     `).all() as any[];
 
     return conversations.map(conv => ({
@@ -243,6 +258,8 @@ export class ConversationManager {
       sessionId: conv.session_id || undefined,
       parentSessionId: conv.parent_session_id || undefined,
       mode: (conv.mode as PermissionMode) || 'default',
+      isPinned: conv.is_pinned === 1,
+      pinnedAt: conv.pinned_at || undefined,
       messages: [],
     }));
   }
@@ -354,6 +371,23 @@ export class ConversationManager {
       SET title = ?, updated_at = ?
       WHERE id = ?
     `).run(title, Date.now(), conversationId);
+  }
+
+  async pinConversation(conversationId: string): Promise<void> {
+    const now = Date.now();
+    this.db.prepare(`
+      UPDATE conversations
+      SET is_pinned = 1, pinned_at = ?
+      WHERE id = ?
+    `).run(now, conversationId);
+  }
+
+  async unpinConversation(conversationId: string): Promise<void> {
+    this.db.prepare(`
+      UPDATE conversations
+      SET is_pinned = 0, pinned_at = NULL
+      WHERE id = ?
+    `).run(conversationId);
   }
 
   getCurrentConversationId(): string | null {

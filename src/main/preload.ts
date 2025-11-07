@@ -102,6 +102,8 @@ contextBridge.exposeInMainWorld('electron', {
   approvePermission: (permissionId: string) => ipcRenderer.invoke('approve-permission', permissionId),
   denyPermission: (permissionId: string) => ipcRenderer.invoke('deny-permission', permissionId),
   updateConversationTitle: (conversationId: string, title: string) => ipcRenderer.invoke('update-conversation-title', conversationId, title),
+  pinConversation: (conversationId: string) => ipcRenderer.invoke('pin-conversation', conversationId),
+  unpinConversation: (conversationId: string) => ipcRenderer.invoke('unpin-conversation', conversationId),
 
   // File operations
   openFile: (filePath: string) => ipcRenderer.invoke('open-file', filePath),
@@ -143,6 +145,8 @@ export interface ElectronAPI {
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;
   updateConversationTitle: (conversationId: string, title: string) => Promise<{ success: boolean; conversation: any }>;
+  pinConversation: (conversationId: string) => Promise<{ success: boolean }>;
+  unpinConversation: (conversationId: string) => Promise<{ success: boolean }>;
   openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   mcpGetConfig: () => Promise<{ success: boolean; config: any; error?: string }>;
   mcpSaveConfig: (servers: any) => Promise<{ success: boolean; error?: string; validationErrors?: string[] }>;

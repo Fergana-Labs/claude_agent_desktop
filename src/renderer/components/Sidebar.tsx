@@ -221,6 +221,30 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     }
   };
 
+  const handlePin = async (conversationId: string) => {
+    setContextMenu(null);
+    try {
+      await window.electron.pinConversation(conversationId);
+      onTitleUpdated?.(); // Refresh conversation list
+    } catch (error) {
+      console.error('Error pinning conversation:', error);
+    }
+  };
+
+  const handleUnpin = async (conversationId: string) => {
+    setContextMenu(null);
+    try {
+      await window.electron.unpinConversation(conversationId);
+      onTitleUpdated?.(); // Refresh conversation list
+    } catch (error) {
+      console.error('Error unpinning conversation:', error);
+    }
+  };
+
+  // Separate pinned and unpinned conversations
+  const pinnedConversations = validatedConversations.filter(conv => conv.isPinned);
+  const unpinnedConversations = validatedConversations.filter(conv => !conv.isPinned);
+
   return (
     <div className="sidebar">
       <div className="sidebar-header">
@@ -260,7 +284,82 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       </div>
 
       <div className="conversations-list">
-        {validatedConversations.map((conv) => (
+        {/* Pinned Conversations Section */}
+        {pinnedConversations.length > 0 && (
+          <>
+            <div className="pinned-section-header">Pinned</div>
+            {pinnedConversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`conversation-item ${conv.id === currentConversationId ? 'active' : ''} ${conv.id === focusedConversationId ? 'focused' : ''} ${!conv.folderExists && conv.projectPath ? 'invalid' : ''}`}
+                onClick={() => handleConversationClick(conv)}
+                onContextMenu={(e) => handleContextMenu(e, conv.id)}
+                style={{
+                  cursor: 'pointer'
+                }}
+              >
+                <div className="conversation-info">
+                  <div className="conversation-title">
+                    {editingConversationId === conv.id ? (
+                      <input
+                        ref={titleInputRef}
+                        type="text"
+                        className="title-edit-input-sidebar"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onKeyDown={(e) => handleTitleKeyDown(e, conv.id)}
+                        onBlur={() => handleTitleSave(conv.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <span className="pin-icon">📌</span>
+                        {conv.title}
+                        {conversationsWithActivity.has(conv.id) && (
+                          <span style={{
+                            marginLeft: '8px',
+                            background: '#4a9eff',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            animation: 'pulse 2s infinite'
+                          }}>
+                            New
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {conv.matchSnippet && (
+                    <div className="search-match-snippet">
+                      {conv.matchSnippet}
+                    </div>
+                  )}
+                  <div className="conversation-date">{formatDate(conv.updatedAt)}</div>
+                  {conv.projectPath && (
+                    <div style={{
+                      fontSize: '10px',
+                      color: conv.folderExists ? '#888' : '#d44',
+                      marginTop: '2px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      📁 {conv.projectPath.split('/').pop() || conv.projectPath}
+                      {!conv.folderExists && ' (folder not found)'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div className="section-divider"></div>
+          </>
+        )}
+
+        {/* Unpinned Conversations Section */}
+        {unpinnedConversations.map((conv) => (
           <div
             key={conv.id}
             className={`conversation-item ${conv.id === currentConversationId ? 'active' : ''} ${conv.id === focusedConversationId ? 'focused' : ''} ${!conv.folderExists && conv.projectPath ? 'invalid' : ''}`}
@@ -337,61 +436,95 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       )}
 
       {/* Context Menu */}
-      {contextMenu && (
-        <div
-          style={{
-            position: 'fixed',
-            left: contextMenu.x,
-            top: contextMenu.y,
-            background: '#2a2a2a',
-            border: '1px solid #444',
-            borderRadius: '4px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            zIndex: 1000,
-            minWidth: '150px'
-          }}
-        >
+      {contextMenu && (() => {
+        const conv = validatedConversations.find(c => c.id === contextMenu.conversationId);
+        const isPinned = conv?.isPinned || false;
+
+        return (
           <div
-            onClick={() => handleRename(contextMenu.conversationId)}
             style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              color: '#fff',
-              fontSize: '14px'
+              position: 'fixed',
+              left: contextMenu.x,
+              top: contextMenu.y,
+              background: '#2a2a2a',
+              border: '1px solid #444',
+              borderRadius: '4px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              zIndex: 1000,
+              minWidth: '150px'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            Rename
+            <div
+              onClick={() => handleRename(contextMenu.conversationId)}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                color: '#fff',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              Rename
+            </div>
+            {isPinned ? (
+              <div
+                onClick={() => handleUnpin(contextMenu.conversationId)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  fontSize: '14px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Unpin
+              </div>
+            ) : (
+              <div
+                onClick={() => handlePin(contextMenu.conversationId)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  fontSize: '14px'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Pin
+              </div>
+            )}
+            <div
+              onClick={() => handleFork(contextMenu.conversationId)}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                color: '#fff',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              Fork Conversation
+            </div>
+            <div
+              onClick={() => handleDelete(contextMenu.conversationId)}
+              style={{
+                padding: '8px 12px',
+                cursor: 'pointer',
+                color: '#ff6b6b',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+            >
+              Delete Conversation
+            </div>
           </div>
-          <div
-            onClick={() => handleFork(contextMenu.conversationId)}
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              color: '#fff',
-              fontSize: '14px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            Fork Conversation
-          </div>
-          <div
-            onClick={() => handleDelete(contextMenu.conversationId)}
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              color: '#ff6b6b',
-              fontSize: '14px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#383838'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            Delete Conversation
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 });
