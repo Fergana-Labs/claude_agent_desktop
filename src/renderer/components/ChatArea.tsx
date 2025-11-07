@@ -491,27 +491,39 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       });
     }
 
-    // Apply new highlights
+    // Apply new highlights - case insensitive
+    const groupedByElement = new Map<HTMLElement, number[]>();
     matches.forEach((match, idx) => {
-      const element = match.element;
+      if (!groupedByElement.has(match.element)) {
+        groupedByElement.set(match.element, []);
+      }
+      groupedByElement.get(match.element)!.push(idx);
+    });
+
+    groupedByElement.forEach((matchIndices, element) => {
       const textContent = element.textContent || '';
       const query = findQuery;
 
       if (!query) return;
 
-      // Create a highlighted version
-      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      // Create a case-insensitive regex to split on matches
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
       const parts = textContent.split(regex);
 
       // Clear element and rebuild with highlights
       element.innerHTML = '';
+      let matchCount = 0;
       parts.forEach(part => {
-        if (part.toLowerCase() === query.toLowerCase()) {
+        if (part.toLowerCase() === query.toLowerCase() && part.length === query.length) {
+          // This is a match
+          const globalMatchIndex = matches.findIndex(m => m.element === element && matchCount === matches.filter(m2 => m2.element === element && m2.index < m.index).length);
           const span = document.createElement('span');
-          span.className = idx === currentIndex ? 'find-match-current' : 'find-match';
+          span.className = globalMatchIndex === currentIndex ? 'find-match-current' : 'find-match';
           span.textContent = part;
           element.appendChild(span);
-        } else {
+          matchCount++;
+        } else if (part) {
           element.appendChild(document.createTextNode(part));
         }
       });

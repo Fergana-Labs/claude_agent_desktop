@@ -11,6 +11,7 @@ interface SidebarProps {
   onDeleteConversation: (id: string) => void;
   onForkConversation: (id: string) => void;
   onShowSettings?: () => void;
+  onTitleUpdated?: () => void;
 }
 
 interface ConversationWithValidity extends Conversation {
@@ -21,6 +22,7 @@ interface ConversationWithValidity extends Conversation {
 export interface SidebarRef {
   handleDeleteFocused: () => void;
   clearFocus: () => void;
+  focusSearch: () => void;
 }
 
 const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
@@ -32,6 +34,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   onDeleteConversation,
   onForkConversation,
   onShowSettings,
+  onTitleUpdated,
 }, ref) => {
   const [validatedConversations, setValidatedConversations] = useState<ConversationWithValidity[]>([]);
   const [contextMenu, setContextMenu] = useState<{ conversationId: string; x: number; y: number } | null>(null);
@@ -43,6 +46,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Search effect with debouncing
   useEffect(() => {
@@ -131,6 +135,10 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       } else {
         console.log('[Sidebar] No focused conversation to delete');
       }
+    },
+    focusSearch: () => {
+      console.log('[Sidebar] focusSearch called');
+      searchInputRef.current?.focus();
     }
   }), [focusedConversationId, validatedConversations, onDeleteConversation]);
 
@@ -195,8 +203,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       await window.electron.updateConversationTitle(conversationId, editingTitle.trim());
       setEditingConversationId(null);
       // Trigger conversation list refresh in App component
-      // This happens automatically through onConversationTitleUpdated callback
-      window.dispatchEvent(new Event('conversation-updated'));
+      onTitleUpdated?.();
     } catch (error) {
       console.error('Error updating title:', error);
     }
@@ -220,6 +227,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         <h2>Claude Office Assistant</h2>
         <div className="search-container">
           <input
+            ref={searchInputRef}
             type="text"
             className="search-input"
             placeholder="Search messages..."

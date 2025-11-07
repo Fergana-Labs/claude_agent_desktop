@@ -14,7 +14,7 @@ function App() {
   const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [conversationsWithActivity, setConversationsWithActivity] = useState<Set<string>>(new Set());
   const [showFindBar, setShowFindBar] = useState(false);
-  const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void } | null>(null);
+  const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void; focusSearch: () => void } | null>(null);
 
   useEffect(() => {
     // Check if electron API is available
@@ -68,6 +68,13 @@ function App() {
         console.log('[Keyboard] Cmd-F triggered');
         e.preventDefault();
         setShowFindBar(true);
+      }
+
+      // Cmd-K / Ctrl-K: Focus sidebar search (don't trigger in input fields)
+      if (cmdOrCtrl && e.key === 'k' && !isInInputField) {
+        console.log('[Keyboard] Cmd-K triggered');
+        e.preventDefault();
+        sidebarRef.current?.focusSearch();
       }
 
       // Esc: Close find bar first, then interrupt message
@@ -317,6 +324,7 @@ function App() {
         onDeleteConversation={handleDeleteConversation}
         onForkConversation={handleForkConversation}
         onShowSettings={() => setShowMcpSettings(true)}
+        onTitleUpdated={loadConversations}
       />
       {showMcpSettings ? (
         <McpSettings />
