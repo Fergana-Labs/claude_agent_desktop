@@ -45,21 +45,30 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   useEffect(() => {
     // Set up streaming token listener with throttling to reduce "twitchy" behavior
     const removeTokenListener = window.electron.onMessageToken((data: { token: string; conversationId: string }) => {
-      // Store the token for the conversation it belongs to
-      const currentContent = conversationStreamingRef.current.get(data.conversationId) || '';
-      const newContent = currentContent + data.token;
-      conversationStreamingRef.current.set(data.conversationId, newContent);
+      // Only process tokens for the current conversation
+      if (conversation?.id !== data.conversationId) {
+        return;
+      }
 
-      // Only update UI if this is the currently viewed conversation
+      // Backend now sends the FULL accumulated text, not just deltas
+      // So we can set it directly instead of appending
+      conversationStreamingRef.current.set(data.conversationId, data.token);
+
       // Use requestAnimationFrame to throttle updates to ~60fps max
-      if (conversation?.id === data.conversationId && !streamingUpdateScheduledRef.current) {
+      if (!streamingUpdateScheduledRef.current) {
         streamingUpdateScheduledRef.current = true;
         requestAnimationFrame(() => {
           streamingUpdateScheduledRef.current = false;
-          // Get the latest content from the ref (may have more tokens than when scheduled)
-          const latestContent = conversationStreamingRef.current.get(data.conversationId) || '';
-          setStreamingContent(latestContent);
-          scrollToBottom();
+          const currentConversationId = conversation?.id;
+          if (!currentConversationId) return;
+          
+          const latestContent = conversationStreamingRef.current.get(currentConversationId) || '';
+          
+          // Only update if we have content and conversation hasn't changed
+          if (latestContent) {
+            setStreamingContent(latestContent);
+            scrollToBottom();
+          }
         });
       }
     });
@@ -116,6 +125,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     const removeProcessingStartedListener = window.electron.onProcessingStarted((data: { conversationId: string }) => {
       // Set loading state for the conversation that started processing
       conversationLoadingRef.current.set(data.conversationId, true);
+      
+      // Clear streaming content ref when starting new stream to prevent mixing old/new content
+      if (conversation?.id === data.conversationId) {
+        conversationStreamingRef.current.set(data.conversationId, '');
+        setStreamingContent('');
+      }
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {

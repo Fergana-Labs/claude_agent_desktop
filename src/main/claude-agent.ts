@@ -55,7 +55,7 @@ export class ClaudeAgent extends EventEmitter {
   private readonly MAX_PROCESSING_ATTEMPTS = 100;
   private callbackQueue: MessageCallbacks[] = [];
   private currentCallbackIndex: number = 0;
-  private streamedTextByCallback: Map<number, string> = new Map();
+  private streamedTextByCallback: Map<string, string> = new Map();
   private needsReload: boolean = false;
 
   constructor(config: ClaudeAgentConfig) {
@@ -313,7 +313,8 @@ export class ClaudeAgent extends EventEmitter {
             content.forEach((block: any) => {
               if (block.type === 'text' && block.text && callbacks.onToken) {
                 const fullText = block.text;
-                const streamedText = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
+                const streamKey = `${this.currentCallbackIndex}-0`; // Default to content_index 0 for assistant messages
+                const streamedText = this.streamedTextByCallback.get(streamKey) || '';
 
                 if (streamedText.length === 0) {
                   // No streaming occurred, send full text
@@ -358,27 +359,48 @@ export class ClaudeAgent extends EventEmitter {
         if (streamMsg.event && streamMsg.event.delta) {
           const delta = streamMsg.event.delta;
           if (delta.type === 'text_delta' && delta.text) {
-            // Accumulate the streamed text for this callback
-            const currentStreamed = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
-            this.streamedTextByCallback.set(this.currentCallbackIndex, currentStreamed + delta.text);
+            // Check if this is a new content block (has index)
+            const contentIndex = streamMsg.event.content_index ?? streamMsg.content_index ?? 0;
+            
+            // Use content index to track separate text blocks
+            const streamKey = `${this.currentCallbackIndex}-${contentIndex}`;
+            const currentStreamed = this.streamedTextByCallback.get(streamKey) || '';
+            const newStreamed = currentStreamed + delta.text;
+            this.streamedTextByCallback.set(streamKey, newStreamed);
 
-            console.log('[ClaudeAgent] Found text delta:', delta.text.substring(0, 50));
+            // Send the FULL accumulated text instead of just the delta
+            // Accumulate text here instead of accumulating deltas in the frontend
             if (callbacks.onToken) {
-              callbacks.onToken(delta.text);
+              callbacks.onToken(newStreamed);
             }
           }
         } else if ('delta' in streamMsg) {
           const delta = streamMsg.delta;
           if (delta && delta.type === 'text_delta' && delta.text) {
-            // Accumulate the streamed text for this callback
-            const currentStreamed = this.streamedTextByCallback.get(this.currentCallbackIndex) || '';
-            this.streamedTextByCallback.set(this.currentCallbackIndex, currentStreamed + delta.text);
+            // Check if this is a new content block (has index)
+            const contentIndex = streamMsg.content_index ?? 0;
+            
+            // Use content index to track separate text blocks
+            const streamKey = `${this.currentCallbackIndex}-${contentIndex}`;
+            const currentStreamed = this.streamedTextByCallback.get(streamKey) || '';
+            const newStreamed = currentStreamed + delta.text;
+            this.streamedTextByCallback.set(streamKey, newStreamed);
 
-            console.log('[ClaudeAgent] Found text delta (alt structure):', delta.text.substring(0, 50));
+            // Send the FULL accumulated text instead of just the delta
+            // Accumulate text here instead of accumulating deltas in the frontend
             if (callbacks.onToken) {
-              callbacks.onToken(delta.text);
+              callbacks.onToken(newStreamed);
             }
           }
+        } else {
+          // Log unknown stream event structure
+          console.log('[ClaudeAgent] Stream event structure:', {
+            hasEvent: !!streamMsg.event,
+            eventType: streamMsg.event?.type,
+            hasDelta: !!streamMsg.event?.delta,
+            deltaType: streamMsg.event?.delta?.type,
+            keys: Object.keys(streamMsg),
+          });
         }
         break;
 
@@ -402,7 +424,14 @@ export class ClaudeAgent extends EventEmitter {
           queueLength: this.callbackQueue.length,
         });
         // Clean up accumulated text for this callback to prevent memory leaks
-        this.streamedTextByCallback.delete(this.currentCallbackIndex);
+        // Delete all entries for this callback index (including all content_index variants)
+        const keysToDelete: string[] = [];
+        this.streamedTextByCallback.forEach((_, key) => {
+          if (key.startsWith(`${this.currentCallbackIndex}-`)) {
+            keysToDelete.push(key);
+          }
+        });
+        keysToDelete.forEach(key => this.streamedTextByCallback.delete(key));
         this.currentCallbackIndex++;
         break;
 
