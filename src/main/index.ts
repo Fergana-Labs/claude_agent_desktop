@@ -525,11 +525,11 @@ ipcMain.handle('set-mode', async (event, mode: string, conversationId: string) =
     throw new Error('No conversation ID provided');
   }
 
+  // Save mode to database FIRST, so getOrCreateAgent reads the correct mode
+  await conversationManager.updateMode(conversationId, mode as any);
+
   // Update agent mode (will get or create agent for this conversation)
   await agentManager.setMode(conversationId, mode as any);
-
-  // Save mode to database
-  await conversationManager.updateMode(conversationId, mode as any);
 
   return { success: true };
 });

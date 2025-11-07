@@ -134,6 +134,7 @@ export class ClaudeAgent extends EventEmitter {
           includePartialMessages: true,  // Enable real-time streaming
           cwd: projectPath,
           settingSources: [],
+          permissionMode: this.mode,  // Pass permission mode in options
           // Allow all tools by not specifying allowedTools
           plugins: [
             { type: 'local', path: this.config.pluginsPath }
