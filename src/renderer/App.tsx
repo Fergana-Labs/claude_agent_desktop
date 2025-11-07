@@ -133,7 +133,6 @@ function App() {
   }, [currentConversation]);
 
   const loadConversations = async () => {
-    console.log('[App] loadConversations called');
     try {
       const convos = await window.electron.getConversations();
 
@@ -175,12 +174,10 @@ function App() {
   };
 
   const loadConversation = async (conversationId: string, limit?: number, offset?: number) => {
-    console.log('[App] loadConversation called:', conversationId);
     try {
       // For initial load, use pagination (load last 50 messages)
       const initialLimit = limit !== undefined ? limit : 50;
       const conversation = await window.electron.getConversation(conversationId, initialLimit, offset);
-      console.log('[App] Loaded conversation, message count:', conversation?.messages.length);
       setCurrentConversation(conversation);
 
       // Clear activity indicator for this conversation

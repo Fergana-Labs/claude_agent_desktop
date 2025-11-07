@@ -172,16 +172,13 @@ export class ClaudeAgent extends EventEmitter {
         this.processingAttempts = 0;
 
       } catch (error: any) {
-        console.log('[ClaudeAgent] Caught error in processQueue:', error.name, error.message);
         if (error.name === 'AbortError' || error.message?.includes('interrupt') || error.message?.includes('AbortError')) {
           console.log('[ClaudeAgent] Query interrupted, preserving queued messages');
           this.isInterrupted = true;
 
           // Notify callbacks about interruption for currently processing messages
-          console.log('[ClaudeAgent] Calling onInterrupted for', this.callbackQueue.length, 'callbacks');
           this.callbackQueue.forEach(callbacks => {
             if (callbacks.onInterrupted) {
-              console.log('[ClaudeAgent] Calling onInterrupted callback');
               callbacks.onInterrupted();
             }
           });
@@ -450,10 +447,8 @@ export class ClaudeAgent extends EventEmitter {
       console.error('[ClaudeAgent] Error interrupting query:', error);
     } finally {
       // Notify currently processing messages about interruption
-      console.log('[ClaudeAgent] interrupt() finally: Calling onInterrupted for', this.callbackQueue.length, 'callbacks');
       this.callbackQueue.forEach(callbacks => {
         if (callbacks.onInterrupted) {
-          console.log('[ClaudeAgent] Calling onInterrupted callback from interrupt()');
           callbacks.onInterrupted();
         }
       });

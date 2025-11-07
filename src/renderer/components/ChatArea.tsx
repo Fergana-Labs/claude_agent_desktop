@@ -98,7 +98,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     const removeInterruptListener = window.electron.onMessageInterrupted((data: { conversationId: string }) => {
       // The actual cleanup is handled by onProcessingComplete
       // This event just signals that interruption was requested
-      console.log('[ChatArea] Message interruption requested for:', data.conversationId);
     });
 
     // Set up user message saved listener (triggers immediate conversation refresh and sidebar reorder)
@@ -126,33 +125,23 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     // Set up processing complete listener
     const removeProcessingCompleteListener = window.electron.onProcessingComplete((data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => {
-      console.log('[ChatArea] ============ Processing complete ============');
-      console.log('[ChatArea] conversationId:', data.conversationId);
-      console.log('[ChatArea] interrupted:', data.interrupted);
-      console.log('[ChatArea] currentConv:', conversation?.id);
-      console.log('[ChatArea] streamingContent length BEFORE:', conversationStreamingRef.current.get(data.conversationId)?.length || 0);
-
       // Clear loading state for the conversation that completed processing
       conversationLoadingRef.current.set(data.conversationId, false);
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
-        console.log('[ChatArea] Setting isLoading to FALSE');
         setIsLoading(false);
 
         // Don't clear streaming content yet - let it "crystallize" into the saved message
         // The streaming content will be cleared when the conversation reloads with the new message
-        console.log('[ChatArea] Keeping streaming content visible (length:', streamingContent.length, ')');
 
         // If interrupted, trigger reload to show the saved partial message
         if (data.interrupted) {
-          console.log('[ChatArea] Was interrupted, calling onMessageSent() to reload');
           // Trigger reload by calling onMessageSent
           onMessageSent();
         }
         // For normal completion, the saved message will appear when assistant-message-saved triggers reload
       }
-      console.log('[ChatArea] ============================================');
     });
 
     // Request notification permission
@@ -244,20 +233,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
   // Clear streaming content when new messages arrive (saved messages loaded from DB)
   useEffect(() => {
-    console.log('[ChatArea useEffect] Messages changed:', {
-      conversationId: conversation?.id,
-      messageCount: conversation?.messages.length,
-      isLoading,
-      hasStreamingInRef: !!conversationStreamingRef.current.get(conversation?.id || ''),
-      streamingContentLength: streamingContent.length
-    });
-
     if (conversation?.id && conversation.messages.length > 0) {
       // If we have messages loaded and streaming content exists, clear it
       // This ensures saved messages from DB replace the streaming content
       const hasStreamingContent = conversationStreamingRef.current.get(conversation.id);
       if (hasStreamingContent && !isLoading) {
-        console.log('[ChatArea useEffect] Clearing streaming content because messages loaded and not loading');
         conversationStreamingRef.current.set(conversation.id, '');
         setStreamingContent('');
       }
@@ -686,21 +666,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           </div>
         )}
 
-        {/* Debug: show message count */}
-        <div style={{ background: 'yellow', color: 'black', padding: '5px', margin: '5px' }}>
-          DEBUG: Rendering {conversation?.messages.length || 0} messages
-        </div>
-
         {conversation?.messages.map((msg, index) => {
           const messageType = msg.messageType || msg.role;
-
-          // Debug each message
-          console.log('[ChatArea RENDER] Message', index, ':', {
-            role: msg.role,
-            messageType,
-            contentLength: msg.content?.length,
-            contentPreview: msg.content?.substring(0, 50)
-          });
 
           // Render different components based on message type
           switch (messageType) {
@@ -746,17 +713,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             <div className="message-content">
               <ReactMarkdown>{streamingContent}</ReactMarkdown>
               {isLoading && <span className="cursor">▊</span>}
-              {!isLoading && <span style={{ color: 'red', fontSize: '10px' }}>[DEBUG: streaming div visible, isLoading=false]</span>}
             </div>
           </div>
         )}
-
-        {/* Debug info */}
-        <div style={{ position: 'fixed', bottom: 10, right: 10, background: 'rgba(0,0,0,0.8)', color: 'lime', padding: '10px', fontSize: '11px', fontFamily: 'monospace', borderRadius: '4px', zIndex: 9999 }}>
-          <div>isLoading: {isLoading.toString()}</div>
-          <div>streamingContent length: {streamingContent.length}</div>
-          <div>messages count: {conversation?.messages.length || 0}</div>
-        </div>
 
         {/* Permission Requests */}
         {permissionRequests.map(request => (
