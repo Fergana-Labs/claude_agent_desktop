@@ -224,19 +224,24 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   }), [focusedConversationId, validatedConversations, onDeleteConversation]);
 
   const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
+    const messageDate = new Date(timestamp);
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (days === 0) {
+    // Get start of day (midnight) for both dates in local timezone
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDateStart = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
+
+    // Calculate difference in calendar days
+    const daysDiff = Math.floor((todayStart.getTime() - messageDateStart.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff === 0) {
       return 'Today';
-    } else if (days === 1) {
+    } else if (daysDiff === 1) {
       return 'Yesterday';
-    } else if (days < 7) {
-      return `${days} days ago`;
+    } else if (daysDiff < 7) {
+      return `${daysDiff} days ago`;
     } else {
-      return date.toLocaleDateString();
+      return messageDate.toLocaleDateString();
     }
   };
 
