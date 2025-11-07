@@ -1,37 +1,18 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "comment": "Local filesystem access via stdio MCP server",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"],
-      "env": {
-        "ALLOWED_PATHS": "${ALLOWED_PATHS:-/Users/username/projects}"
-      }
-    },
-    "github": {
-      "comment": "GitHub MCP server for repository operations",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-      }
-    },
-    "postgres": {
-      "comment": "PostgreSQL database access via HTTP MCP server",
+    "example-api": {
+      "comment": "Example remote MCP server with OAuth",
       "type": "http",
-      "url": "https://postgres-mcp.example.com/mcp",
+      "url": "https://api.example.com/mcp",
       "headers": {
-        "Authorization": "Bearer ${POSTGRES_MCP_TOKEN}",
-        "X-API-Key": "${POSTGRES_API_KEY:-default-api-key}"
+        "X-OAuth-Client-ID": "your-client-id",
+        "X-OAuth-Client-Secret": "your-client-secret"
       }
     },
-    "slack": {
-      "comment": "Slack integration via SSE (Server-Sent Events) MCP server",
-      "type": "sse",
-      "url": "https://slack-mcp.example.com/sse",
-      "headers": {
-        "Authorization": "Bearer ${SLACK_TOKEN}"
-      }
+    "another-service": {
+      "comment": "Example remote MCP server without OAuth",
+      "type": "http",
+      "url": "https://mcp.another-service.com/v1"
     }
   }
 }

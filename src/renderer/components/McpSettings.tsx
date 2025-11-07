@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import './McpSettings.css';
 
 interface McpServer {
-  type?: 'stdio' | 'http' | 'sse' | 'sdk';
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  url?: string;
+  type: 'http';
+  url: string;
   headers?: Record<string, string>;
-  name?: string;
 }
 
 interface McpConfig {
   [key: string]: McpServer;
+}
+
+interface ServerConnectionStatus {
+  [key: string]: 'idle' | 'connecting' | 'connected' | 'failed';
 }
 
 const McpSettings: React.FC = () => {
@@ -21,9 +21,16 @@ const McpSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [editingServer, setEditingServer] = useState<string | null>(null);
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const [editingServers, setEditingServers] = useState<Set<string>>(new Set());
+  const [connectionStatus, setConnectionStatus] = useState<ServerConnectionStatus>({});
+
+  // New server form state
   const [newServerName, setNewServerName] = useState('');
-  const [newServer, setNewServer] = useState<McpServer>({ type: 'stdio' });
+  const [newServerUrl, setNewServerUrl] = useState('');
+  const [newServerOAuthClient, setNewServerOAuthClient] = useState('');
+  const [newServerOAuthSecret, setNewServerOAuthSecret] = useState('');
+  const [showNewServerAdvanced, setShowNewServerAdvanced] = useState(false);
 
   // Load MCP configuration on mount
   useEffect(() => {
@@ -53,13 +60,6 @@ const McpSettings: React.FC = () => {
       setError(null);
       setSuccessMessage(null);
 
-      // Validate before saving
-      const validateResult = await window.electron.mcpValidateConfig(config);
-      if (!validateResult.success && validateResult.errors.length > 0) {
-        setError(`Validation errors:\n${validateResult.errors.join('\n')}`);
-        return;
-      }
-
       const result = await window.electron.mcpSaveConfig(config);
       if (result.success) {
         setSuccessMessage('Configuration saved successfully! Restart conversations to apply changes.');
@@ -74,9 +74,83 @@ const McpSettings: React.FC = () => {
     }
   };
 
+  const testConnection = async (serverName: string) => {
+    setConnectionStatus(prev => ({ ...prev, [serverName]: 'connecting' }));
+    setError(null);
+
+    try {
+      const server = config[serverName];
+
+      // Note: This is a basic connectivity check from the browser.
+      // Many MCP servers will reject browser requests due to CORS, auth, or header requirements.
+      // This doesn't mean the server won't work - the SDK bypasses these browser limitations.
+
+      const response = await fetch(server.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(server.headers || {})
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: {
+            protocolVersion: '2024-11-05',
+            capabilities: {},
+            clientInfo: {
+              name: 'claude-desktop',
+              version: '1.0.0'
+            }
+          }
+        })
+      });
+
+      // Any response (even error codes) means the server is reachable
+      if (response.status >= 200 && response.status < 500) {
+        try {
+          const data = await response.json();
+          if (data.jsonrpc === '2.0') {
+            setConnectionStatus(prev => ({ ...prev, [serverName]: 'connected' }));
+            setSuccessMessage(`✓ Server is reachable at ${server.url}`);
+          } else {
+            // Server responded but not with MCP protocol - still reachable
+            setConnectionStatus(prev => ({ ...prev, [serverName]: 'connected' }));
+            setSuccessMessage(`✓ Server is reachable (Note: may require additional auth for full MCP protocol)`);
+          }
+        } catch {
+          // Response isn't JSON, but server is reachable
+          setConnectionStatus(prev => ({ ...prev, [serverName]: 'connected' }));
+          setSuccessMessage(`✓ Server is reachable at ${server.url}`);
+        }
+      } else {
+        setConnectionStatus(prev => ({ ...prev, [serverName]: 'failed' }));
+        setError(`Server returned ${response.status}. This may be due to browser limitations. Try saving and using in conversation.`);
+      }
+
+      setTimeout(() => {
+        setConnectionStatus(prev => ({ ...prev, [serverName]: 'idle' }));
+        setTimeout(() => setSuccessMessage(null), 2000);
+      }, 3000);
+    } catch (err: any) {
+      // Network error - truly unreachable
+      setConnectionStatus(prev => ({ ...prev, [serverName]: 'failed' }));
+      setError(`Cannot reach ${config[serverName].url}. Check the URL or try saving anyway - the SDK may still connect successfully.`);
+
+      setTimeout(() => {
+        setConnectionStatus(prev => ({ ...prev, [serverName]: 'idle' }));
+      }, 3000);
+    }
+  };
+
   const addServer = () => {
     if (!newServerName.trim()) {
       setError('Server name cannot be empty');
+      return;
+    }
+
+    if (!newServerUrl.trim()) {
+      setError('Server URL cannot be empty');
       return;
     }
 
@@ -85,14 +159,39 @@ const McpSettings: React.FC = () => {
       return;
     }
 
+    // Validate URL format
+    try {
+      new URL(newServerUrl);
+    } catch {
+      setError('Invalid URL format');
+      return;
+    }
+
+    const headers: Record<string, string> = {};
+
+    // Add OAuth headers if provided
+    if (newServerOAuthClient && newServerOAuthSecret) {
+      headers['X-OAuth-Client-ID'] = newServerOAuthClient;
+      headers['X-OAuth-Client-Secret'] = newServerOAuthSecret;
+    }
+
+    const newServer: McpServer = {
+      type: 'http',
+      url: newServerUrl,
+      ...(Object.keys(headers).length > 0 && { headers })
+    };
+
     setConfig({
       ...config,
-      [newServerName]: { ...newServer }
+      [newServerName]: newServer
     });
 
     // Reset form
     setNewServerName('');
-    setNewServer({ type: 'stdio' });
+    setNewServerUrl('');
+    setNewServerOAuthClient('');
+    setNewServerOAuthSecret('');
+    setShowNewServerAdvanced(false);
     setError(null);
     setSuccessMessage('Server added. Remember to save your changes!');
     setTimeout(() => setSuccessMessage(null), 3000);
@@ -102,118 +201,88 @@ const McpSettings: React.FC = () => {
     const newConfig = { ...config };
     delete newConfig[name];
     setConfig(newConfig);
+
+    // Clean up editing state
+    setEditingServers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(name);
+      return newSet;
+    });
+
     setSuccessMessage('Server removed. Remember to save your changes!');
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
-  const updateServer = (name: string, updates: Partial<McpServer>) => {
-    setConfig({
-      ...config,
-      [name]: { ...config[name], ...updates }
+  const toggleEditing = (serverName: string) => {
+    setEditingServers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(serverName)) {
+        newSet.delete(serverName);
+      } else {
+        newSet.add(serverName);
+      }
+      return newSet;
     });
   };
 
-  const renderServerForm = (server: McpServer, onChange: (updates: Partial<McpServer>) => void, isNew: boolean = false) => {
-    const serverType = server.type || 'stdio';
+  const updateServerUrl = (serverName: string, newUrl: string) => {
+    setConfig({
+      ...config,
+      [serverName]: {
+        ...config[serverName],
+        url: newUrl
+      }
+    });
+  };
 
-    return (
-      <div className="server-form">
-        <div className="form-group">
-          <label>Server Type:</label>
-          <select
-            value={serverType}
-            onChange={(e) => onChange({ type: e.target.value as any })}
-          >
-            <option value="stdio">Stdio (Local Process)</option>
-            <option value="http">HTTP (Remote)</option>
-            <option value="sse">SSE (Server-Sent Events)</option>
-          </select>
-        </div>
+  const toggleAdvanced = (serverName: string) => {
+    setExpandedServers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(serverName)) {
+        newSet.delete(serverName);
+      } else {
+        newSet.add(serverName);
+      }
+      return newSet;
+    });
+  };
 
-        {serverType === 'stdio' && (
-          <>
-            <div className="form-group">
-              <label>Command:</label>
-              <input
-                type="text"
-                value={server.command || ''}
-                onChange={(e) => onChange({ command: e.target.value })}
-                placeholder="e.g., npx"
-              />
-            </div>
+  const updateServerOAuth = (serverName: string, clientId: string, clientSecret: string) => {
+    const server = config[serverName];
+    const headers = { ...(server.headers || {}) };
 
-            <div className="form-group">
-              <label>Arguments (one per line):</label>
-              <textarea
-                value={(server.args || []).join('\n')}
-                onChange={(e) => onChange({ args: e.target.value.split('\n').filter(a => a.trim()) })}
-                placeholder="e.g., -y&#10;@modelcontextprotocol/server-filesystem&#10;/path/to/directory"
-                rows={4}
-              />
-            </div>
-          </>
-        )}
+    if (clientId) {
+      headers['X-OAuth-Client-ID'] = clientId;
+    } else {
+      delete headers['X-OAuth-Client-ID'];
+    }
 
-        {(serverType === 'http' || serverType === 'sse') && (
-          <>
-            <div className="form-group">
-              <label>URL:</label>
-              <input
-                type="text"
-                value={server.url || ''}
-                onChange={(e) => onChange({ url: e.target.value })}
-                placeholder="https://api.example.com/mcp"
-              />
-            </div>
+    if (clientSecret) {
+      headers['X-OAuth-Client-Secret'] = clientSecret;
+    } else {
+      delete headers['X-OAuth-Client-Secret'];
+    }
 
-            <div className="form-group">
-              <label>Headers (JSON format):</label>
-              <textarea
-                value={JSON.stringify(server.headers || {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const headers = JSON.parse(e.target.value);
-                    onChange({ headers });
-                  } catch {
-                    // Ignore invalid JSON during typing
-                  }
-                }}
-                placeholder='{\n  "Authorization": "Bearer ${API_TOKEN}"\n}'
-                rows={4}
-              />
-            </div>
-          </>
-        )}
+    setConfig({
+      ...config,
+      [serverName]: {
+        ...server,
+        headers: Object.keys(headers).length > 0 ? headers : undefined
+      }
+    });
+  };
 
-        <div className="form-group">
-          <label>Environment Variables (JSON format):</label>
-          <textarea
-            value={JSON.stringify(server.env || {}, null, 2)}
-            onChange={(e) => {
-              try {
-                const env = JSON.parse(e.target.value);
-                onChange({ env });
-              } catch {
-                // Ignore invalid JSON during typing
-              }
-            }}
-            placeholder='{\n  "API_KEY": "${API_KEY}",\n  "VAR": "${VAR:-default}"\n}'
-            rows={4}
-          />
-          <small className="form-hint">
-            Use $&#123;VAR&#125; for environment variables, $&#123;VAR:-default&#125; for defaults
-          </small>
-        </div>
-
-        {!isNew && (
-          <div className="form-actions">
-            <button className="done-btn" onClick={() => setEditingServer(null)}>
-              Done
-            </button>
-          </div>
-        )}
-      </div>
-    );
+  const getConnectionStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connecting':
+        return '⏳';
+      case 'connected':
+        return '✅';
+      case 'failed':
+        return '❌';
+      default:
+        return '';
+    }
   };
 
   if (loading) {
@@ -228,7 +297,7 @@ const McpSettings: React.FC = () => {
     <div className="mcp-settings">
       <div className="settings-header">
         <h1>MCP Server Configuration</h1>
-        <p>Configure Model Context Protocol servers to extend Claude's capabilities.</p>
+        <p>Connect to remote Model Context Protocol servers to extend Claude's capabilities.</p>
       </div>
 
       {error && (
@@ -246,57 +315,111 @@ const McpSettings: React.FC = () => {
       )}
 
       <div className="server-list">
-        <h2>Configured Servers</h2>
+        <h2>Connected Servers</h2>
 
         {Object.keys(config).length === 0 ? (
           <div className="empty-state">
             <p>No MCP servers configured yet.</p>
-            <p>Add your first server below to get started!</p>
+            <p>Add your first remote server below to get started!</p>
           </div>
         ) : (
-          Object.entries(config).map(([name, server]) => (
-            <div key={name} className="server-item">
-              <div className="server-header">
-                <h3>{name}</h3>
-                <div className="server-type-badge">{server.type || 'stdio'}</div>
-                <div className="server-actions">
-                  <button
-                    className="edit-btn"
-                    onClick={() => setEditingServer(editingServer === name ? null : name)}
-                  >
-                    {editingServer === name ? 'Collapse' : 'Edit'}
-                  </button>
-                  <button
-                    className="delete-btn"
-                    onClick={() => deleteServer(name)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+          Object.entries(config).map(([name, server]) => {
+            const isExpanded = expandedServers.has(name);
+            const isEditing = editingServers.has(name);
+            const status = connectionStatus[name] || 'idle';
+            const oauthClient = server.headers?.['X-OAuth-Client-ID'] || '';
+            const oauthSecret = server.headers?.['X-OAuth-Client-Secret'] || '';
 
-              {editingServer === name && (
-                <div className="server-details">
-                  {renderServerForm(server, (updates) => updateServer(name, updates))}
+            return (
+              <div key={name} className="server-item">
+                <div className="server-header">
+                  <div className="server-main-info">
+                    <h3>{name}</h3>
+                    {isEditing ? (
+                      <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                        <input
+                          type="text"
+                          value={server.url}
+                          onChange={(e) => updateServerUrl(name, e.target.value)}
+                          placeholder="https://api.example.com/mcp"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <div className="server-url">{server.url}</div>
+                    )}
+                  </div>
+                  <div className="server-actions">
+                    {status !== 'idle' && (
+                      <span className="connection-status">
+                        {getConnectionStatusIcon(status)}
+                      </span>
+                    )}
+                    <button
+                      className="edit-btn"
+                      onClick={() => toggleEditing(name)}
+                    >
+                      {isEditing ? 'Done' : 'Edit'}
+                    </button>
+                    <button
+                      className="test-btn"
+                      onClick={() => testConnection(name)}
+                      disabled={status === 'connecting'}
+                      title="Browser-based connectivity check (may not work due to CORS/auth)"
+                    >
+                      {status === 'connecting' ? 'Testing...' : 'Test'}
+                    </button>
+                    <button
+                      className="mcp-delete-btn"
+                      onClick={() => deleteServer(name)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-              )}
 
-              {editingServer !== name && (
-                <div className="server-summary">
-                  {server.command && <div><strong>Command:</strong> {server.command}</div>}
-                  {server.url && <div><strong>URL:</strong> {server.url}</div>}
-                  {server.args && server.args.length > 0 && (
-                    <div><strong>Args:</strong> {server.args.length} argument(s)</div>
+                {/* Advanced Section (OAuth) */}
+                <div className="advanced-section">
+                  <button
+                    className="accordion-toggle"
+                    onClick={() => toggleAdvanced(name)}
+                  >
+                    <span className={`accordion-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
+                    Advanced (OAuth)
+                  </button>
+
+                  {isExpanded && (
+                    <div className="advanced-content">
+                      <div className="form-group">
+                        <label>OAuth Client ID:</label>
+                        <input
+                          type="text"
+                          value={oauthClient}
+                          onChange={(e) => updateServerOAuth(name, e.target.value, oauthSecret)}
+                          placeholder="Enter OAuth Client ID"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>OAuth Client Secret:</label>
+                        <input
+                          type="password"
+                          value={oauthSecret}
+                          onChange={(e) => updateServerOAuth(name, oauthClient, e.target.value)}
+                          placeholder="Enter OAuth Client Secret"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
       <div className="add-server-section">
-        <h2>Add New Server</h2>
+        <h2>Add New Remote Server</h2>
 
         <div className="form-group">
           <label>Server Name:</label>
@@ -304,11 +427,55 @@ const McpSettings: React.FC = () => {
             type="text"
             value={newServerName}
             onChange={(e) => setNewServerName(e.target.value)}
-            placeholder="e.g., github, postgres, filesystem"
+            placeholder="e.g., my-api-server"
           />
         </div>
 
-        {renderServerForm(newServer, (updates) => setNewServer({ ...newServer, ...updates }), true)}
+        <div className="form-group">
+          <label>Remote MCP URL:</label>
+          <input
+            type="text"
+            value={newServerUrl}
+            onChange={(e) => setNewServerUrl(e.target.value)}
+            placeholder="https://api.example.com/mcp"
+          />
+        </div>
+
+        {/* Advanced Section for New Server */}
+        <div className="advanced-section">
+          <button
+            className="accordion-toggle"
+            onClick={() => setShowNewServerAdvanced(!showNewServerAdvanced)}
+            type="button"
+          >
+            <span className={`accordion-icon ${showNewServerAdvanced ? 'expanded' : ''}`}>▶</span>
+            Advanced (OAuth)
+          </button>
+
+          {showNewServerAdvanced && (
+            <div className="advanced-content">
+              <div className="form-group">
+                <label>OAuth Client ID:</label>
+                <input
+                  type="text"
+                  value={newServerOAuthClient}
+                  onChange={(e) => setNewServerOAuthClient(e.target.value)}
+                  placeholder="Enter OAuth Client ID (optional)"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>OAuth Client Secret:</label>
+                <input
+                  type="password"
+                  value={newServerOAuthSecret}
+                  onChange={(e) => setNewServerOAuthSecret(e.target.value)}
+                  placeholder="Enter OAuth Client Secret (optional)"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         <button className="add-btn" onClick={addServer}>
           Add Server
@@ -328,11 +495,18 @@ const McpSettings: React.FC = () => {
         <h3>About MCP Servers</h3>
         <p>
           MCP (Model Context Protocol) servers provide additional tools and capabilities to Claude.
-          After saving changes, you'll need to restart your conversations for the new configuration to take effect.
-        </p>
-        <p>
           Configuration is stored in <code>.mcp.json</code> in your project root.
         </p>
+        <p>
+          <strong>Important:</strong> Existing conversations won't be updated with new MCP servers.
+          You'll need to <strong>start a new conversation</strong> (Cmd+T) to use newly configured servers.
+        </p>
+        <div className="info-callout">
+          <strong>⚠️ About Connection Testing</strong>
+          <p>
+            The "Test Connection" button may fail due to browser limitations (CORS, auth, headers), but this doesn't mean the server won't work - just save and try it in a new conversation.
+          </p>
+        </div>
       </div>
     </div>
   );
