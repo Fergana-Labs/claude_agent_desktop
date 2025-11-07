@@ -59,10 +59,13 @@ export class ClaudeAgent extends EventEmitter {
   constructor(config: ClaudeAgentConfig) {
     super();
     this.config = config;
+    console.log('this config is config, and config is', config)
 
     // Initialize session ID and mode from config (for session restoration)
     this.currentSessionId = config.sessionId || null;
+    console.log('config mode is ', config.mode)
     this.mode = config.mode || 'default';
+    console.log('this mode is', this.mode)
 
     console.log('[ClaudeAgent] Initialized with:', {
       projectPath: config.projectPath,
@@ -88,6 +91,7 @@ export class ClaudeAgent extends EventEmitter {
 
   // Process queued messages using async generator pattern
   private async processQueue(): Promise<void> {
+    console.log('henry we are processing the damn queue');
     if (this.isProcessing) return;
     this.isProcessing = true;
     this.isInterrupted = false;
@@ -154,6 +158,8 @@ export class ClaudeAgent extends EventEmitter {
 
         // Use streaming input mode with async generator
         this.currentQuery = query({ prompt: messageGenerator, options });
+
+        console.log('henry we are about to set permission mode as ', this.mode)
 
         // Set permission mode on the query
         this.currentQuery.setPermissionMode(this.mode);

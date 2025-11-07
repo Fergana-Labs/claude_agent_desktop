@@ -351,13 +351,14 @@ ipcMain.handle('get-conversation', async (event, conversationId: string, limit?:
   }
 });
 
-ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string) => {
+ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string, mode?: string) => {
   if (!conversationManager) {
     throw new Error('Services not initialized');
   }
 
-  // Create new conversation
-  const conversationId = await conversationManager.newConversation();
+  // Create new conversation with optional mode
+  console.log('henry we are about to make a new conversation via conversationManager.')
+  const conversationId = await conversationManager.newConversation(mode as any);
 
   // Set as active conversation
   conversationManager.setCurrentConversationId(conversationId);

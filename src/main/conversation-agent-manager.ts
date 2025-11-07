@@ -46,6 +46,7 @@ export class ConversationAgentManager extends EventEmitter {
 
     // Get conversation details from database
     const conversation = await this.conversationManager.getConversation(conversationId);
+    console.log('we in get or create agent and the conversation is', conversation)
     if (!conversation) {
       throw new Error(`Conversation ${conversationId} not found`);
     }
