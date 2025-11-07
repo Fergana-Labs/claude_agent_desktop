@@ -261,7 +261,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       onPermissionRequest: (request: any) => {
         mainWindow?.webContents.send('permission-request', { ...request, conversationId });
       },
-      onInterrupted: () => {
+      onInterrupted: async () => {
+        // Save any streamed content before interrupting
+        await saveTextChunk();
         mainWindow?.webContents.send('message-interrupted', { conversationId });
       },
     });

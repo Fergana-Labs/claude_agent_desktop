@@ -138,7 +138,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
         setIsLoading(false);
-        // Don't clear streaming content yet - wait for the saved message to load
+
+        // If interrupted, clear streaming content and trigger reload to show the saved partial message
+        if (data.interrupted) {
+          conversationStreamingRef.current.set(data.conversationId, '');
+          setStreamingContent('');
+          // Trigger reload by calling onMessageSent
+          onMessageSent();
+        }
+        // For normal completion, don't clear streaming content yet - wait for the saved message to load
         // The content will be cleared when conversation reloads with the new message
       }
     });
@@ -348,13 +356,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       // Only show alert for real errors, not interruptions
       if (!isInterruption) {
         alert('Failed to send message. Please check your API key.');
+        // Clear loading state and content only for real errors (processing never started)
+        conversationLoadingRef.current.set(conversationId, false);
+        conversationStreamingRef.current.set(conversationId, '');
+        setIsLoading(false);
+        setStreamingContent('');
       }
-
-      // Clear loading state only on error (processing never started)
-      conversationLoadingRef.current.set(conversationId, false);
-      conversationStreamingRef.current.set(conversationId, '');
-      setIsLoading(false);
-      setStreamingContent('');
+      // For interruptions, don't clear streaming content - it will be saved and reloaded
     }
   };
 
