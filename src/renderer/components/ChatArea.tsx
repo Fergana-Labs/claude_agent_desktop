@@ -76,6 +76,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === request.conversationId) {
+        console.log('henry we are about to set a new permission request so we can display it')
         setPermissionRequests(newRequests);
       }
 

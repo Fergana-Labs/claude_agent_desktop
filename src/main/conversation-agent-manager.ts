@@ -148,22 +148,14 @@ export class ConversationAgentManager extends EventEmitter {
   }
 
   /**
-   * Handle permission approval
+   * Handle permission response
    */
-  async approvePermission(conversationId: string, permissionId: string): Promise<void> {
+  respondToPermissionRequest(conversationId: string, requestId: string, approved: boolean, updatedInput?: Record<string, unknown>): void {
     const agent = this.agents.get(conversationId);
     if (agent) {
-      await agent.approvePermission(permissionId);
-    }
-  }
-
-  /**
-   * Handle permission denial
-   */
-  async denyPermission(conversationId: string, permissionId: string): Promise<void> {
-    const agent = this.agents.get(conversationId);
-    if (agent) {
-      await agent.denyPermission(permissionId);
+      agent.respondToPermissionRequest(requestId, approved, updatedInput);
+    } else {
+      console.warn('[AgentManager] No agent found for conversation:', conversationId);
     }
   }
 
