@@ -40,3 +40,14 @@ export interface PermissionRequest {
   details: string;
   timestamp: number;
 }
+
+export interface SearchMatch {
+  messageId: number;
+  snippet: string;
+  matchPosition: number;
+}
+
+export interface SearchResult {
+  conversation: Conversation;
+  matches: SearchMatch[];
+}

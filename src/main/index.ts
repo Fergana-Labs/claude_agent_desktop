@@ -335,6 +335,13 @@ ipcMain.handle('get-conversations', async () => {
   return await conversationManager.getConversations();
 });
 
+ipcMain.handle('search-conversations', async (event, query: string, caseSensitive: boolean) => {
+  if (!conversationManager) {
+    throw new Error('Conversation manager not initialized');
+  }
+  return await conversationManager.searchConversations(query, caseSensitive);
+});
+
 ipcMain.handle('get-conversation', async (event, conversationId: string, limit?: number, offset?: number) => {
   if (!conversationManager) {
     throw new Error('Services not initialized');

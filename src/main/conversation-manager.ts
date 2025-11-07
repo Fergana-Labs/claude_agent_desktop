@@ -365,6 +365,107 @@ export class ConversationManager {
     }
   }
 
+  async searchConversations(query: string, caseSensitive: boolean = false): Promise<any[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const searchPattern = caseSensitive ? `%${query}%` : `%${query.toLowerCase()}%`;
+
+    // Search for messages containing the query
+    // Use LIKE with case sensitivity based on parameter
+    const sql = caseSensitive
+      ? `
+        SELECT
+          m.id as message_id,
+          m.content,
+          m.conversation_id,
+          c.id,
+          c.title,
+          c.created_at,
+          c.updated_at,
+          c.project_path,
+          c.session_id,
+          c.parent_session_id,
+          c.mode,
+          c.last_user_message_at
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.content LIKE ?
+        ORDER BY c.last_user_message_at DESC, m.timestamp DESC
+      `
+      : `
+        SELECT
+          m.id as message_id,
+          m.content,
+          m.conversation_id,
+          c.id,
+          c.title,
+          c.created_at,
+          c.updated_at,
+          c.project_path,
+          c.session_id,
+          c.parent_session_id,
+          c.mode,
+          c.last_user_message_at
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE LOWER(m.content) LIKE ?
+        ORDER BY c.last_user_message_at DESC, m.timestamp DESC
+      `;
+
+    const results = this.db.prepare(sql).all(searchPattern) as any[];
+
+    // Group results by conversation
+    const conversationMap = new Map<string, any>();
+
+    for (const row of results) {
+      const convId = row.conversation_id;
+
+      if (!conversationMap.has(convId)) {
+        conversationMap.set(convId, {
+          conversation: {
+            id: row.id,
+            title: row.title,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            projectPath: row.project_path || undefined,
+            sessionId: row.session_id || undefined,
+            parentSessionId: row.parent_session_id || undefined,
+            mode: row.mode || 'default',
+            messages: [],
+          },
+          matches: []
+        });
+      }
+
+      // Find the match position in the content
+      const content = row.content;
+      const searchTerm = caseSensitive ? query : query.toLowerCase();
+      const searchContent = caseSensitive ? content : content.toLowerCase();
+      const matchIndex = searchContent.indexOf(searchTerm);
+
+      if (matchIndex !== -1) {
+        // Extract snippet around the match (50 chars before and after)
+        const snippetStart = Math.max(0, matchIndex - 50);
+        const snippetEnd = Math.min(content.length, matchIndex + searchTerm.length + 50);
+        let snippet = content.substring(snippetStart, snippetEnd);
+
+        // Add ellipsis if we're not at the start/end
+        if (snippetStart > 0) snippet = '...' + snippet;
+        if (snippetEnd < content.length) snippet = snippet + '...';
+
+        conversationMap.get(convId).matches.push({
+          messageId: row.message_id,
+          snippet: snippet,
+          matchPosition: matchIndex
+        });
+      }
+    }
+
+    return Array.from(conversationMap.values());
+  }
+
   async forkConversation(conversationId: string): Promise<Conversation> {
     // Get the parent conversation
     const parentConversation = await this.getConversation(conversationId);

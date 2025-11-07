@@ -73,6 +73,9 @@ contextBridge.exposeInMainWorld('electron', {
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
+  searchConversations: (query: string, caseSensitive: boolean) =>
+    ipcRenderer.invoke('search-conversations', query, caseSensitive),
+
   getConversation: (conversationId: string, limit?: number, offset?: number) =>
     ipcRenderer.invoke('get-conversation', conversationId, limit, offset),
 
@@ -123,6 +126,7 @@ export interface ElectronAPI {
   onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
+  searchConversations: (query: string, caseSensitive: boolean) => Promise<any[]>;
   getConversation: (conversationId: string, limit?: number, offset?: number) => Promise<any>;
   newConversationWithFolder: (folderPath: string) => Promise<{ success: boolean; conversationId: string }>;
   deleteConversation: (conversationId: string) => Promise<{ success: boolean }>;

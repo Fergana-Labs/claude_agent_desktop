@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Conversation } from '../types';
+import { Conversation, SearchResult } from '../types';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -15,6 +15,7 @@ interface SidebarProps {
 
 interface ConversationWithValidity extends Conversation {
   folderExists: boolean;
+  matchSnippet?: string;
 }
 
 export interface SidebarRef {
@@ -35,15 +36,64 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [validatedConversations, setValidatedConversations] = useState<ConversationWithValidity[]>([]);
   const [contextMenu, setContextMenu] = useState<{ conversationId: string; x: number; y: number } | null>(null);
   const [focusedConversationId, setFocusedConversationId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [caseSensitive, setCaseSensitive] = useState<boolean>(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+
+  // Search effect with debouncing
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const results = await window.electron.searchConversations(searchQuery, caseSensitive);
+        setSearchResults(results);
+
+        // Auto-focus first result
+        if (results.length > 0) {
+          const firstResultId = results[0].conversation.id;
+          setFocusedConversationId(firstResultId);
+          onSelectConversation(firstResultId);
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(performSearch, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, caseSensitive]);
 
   useEffect(() => {
     const validateFolders = async () => {
+      // Determine which conversations to validate
+      const conversationsToValidate = searchQuery.trim()
+        ? searchResults.map(result => result.conversation)
+        : conversations;
+
       const validated = await Promise.all(
-        conversations.map(async (conv) => {
+        conversationsToValidate.map(async (conv) => {
           if (!conv.projectPath) {
             return { ...conv, folderExists: false };
           }
           const result = await window.electron.checkFolderExists(conv.projectPath);
+
+          // Add search match snippet if available
+          if (searchQuery.trim()) {
+            const searchResult = searchResults.find(r => r.conversation.id === conv.id);
+            const matchSnippet = searchResult?.matches?.[0]?.snippet || '';
+            return { ...conv, folderExists: result.exists, matchSnippet };
+          }
+
           return { ...conv, folderExists: result.exists };
         })
       );
@@ -51,7 +101,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     };
 
     validateFolders();
-  }, [conversations]);
+  }, [conversations, searchResults, searchQuery]);
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -126,6 +176,31 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     <div className="sidebar">
       <div className="sidebar-header">
         <h2>Claude Office Assistant</h2>
+        <div className="search-container">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search messages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              className="search-clear-btn"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+          <button
+            className={`case-sensitive-btn ${caseSensitive ? 'active' : ''}`}
+            onClick={() => setCaseSensitive(!caseSensitive)}
+            title={caseSensitive ? 'Case-sensitive' : 'Case-insensitive'}
+          >
+            Aa
+          </button>
+        </div>
         <button className="new-conversation-btn" onClick={onNewConversation}>
           + New Chat
         </button>
@@ -160,6 +235,11 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   </span>
                 )}
               </div>
+              {conv.matchSnippet && (
+                <div className="search-match-snippet">
+                  {conv.matchSnippet}
+                </div>
+              )}
               <div className="conversation-date">{formatDate(conv.updatedAt)}</div>
               {conv.projectPath && (
                 <div style={{
