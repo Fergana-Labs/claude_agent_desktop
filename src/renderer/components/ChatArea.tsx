@@ -36,6 +36,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [findQuery, setFindQuery] = useState('');
   const [findMatches, setFindMatches] = useState<{ element: HTMLElement; index: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [sendError, setSendError] = useState<{ message: string; details: string } | null>(null);
+  const [errorExpanded, setErrorExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
@@ -343,6 +345,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
 
     try {
+      // Clear any previous errors when sending a new message
+      setSendError(null);
+
       await window.electron.sendMessage(messageContent, conversationId, messageAttachments);
       // Note: We don't refresh conversations here because:
       // 1. The user-message-saved event already triggers a refresh
@@ -356,9 +361,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                             error?.message?.includes('AbortError') ||
                             error?.message?.includes('interrupt');
 
-      // Only show alert for real errors, not interruptions
+      // Only show error for real errors, not interruptions
       if (!isInterruption) {
-        alert('Failed to send message. Please check your API key.');
+        // Set error state to display in chat
+        setSendError({
+          message: 'Failed to send message',
+          details: error?.message || 'An unexpected error occurred. Please check your configuration and try again.'
+        });
+
         // Clear loading state and content only for real errors (processing never started)
         conversationLoadingRef.current.set(conversationId, false);
         conversationStreamingRef.current.set(conversationId, '');
@@ -912,6 +922,46 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
               <ReactMarkdown>{streamingContent}</ReactMarkdown>
               {isLoading && <span className="cursor">▊</span>}
             </div>
+          </div>
+        )}
+
+        {/* Error Message Display */}
+        {sendError && (
+          <div className="tool-message error-message" style={{ margin: '10px 0' }}>
+            <div
+              className="tool-header"
+              onClick={() => setErrorExpanded(!errorExpanded)}
+              style={{ cursor: 'pointer' }}
+            >
+              <span className="tool-icon">⚠</span>
+              <span className="tool-summary">{sendError.message}</span>
+              <span className="expand-icon">{errorExpanded ? '▼' : '▶'}</span>
+            </div>
+            {errorExpanded && (
+              <div className="tool-details">
+                <div className="error-detail-section">
+                  <pre className="error-content">{sendError.details}</pre>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setSendError(null);
+                setErrorExpanded(false);
+              }}
+              style={{
+                marginTop: '8px',
+                padding: '6px 12px',
+                background: '#3e3e42',
+                border: 'none',
+                borderRadius: '4px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
