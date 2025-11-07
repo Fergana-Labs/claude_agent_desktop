@@ -1,10 +1,21 @@
 .sidebar {
-  width: 260px;
+  min-width: 50px;
   background-color: #252526;
   border-right: 1px solid #3e3e42;
   display: flex;
   flex-direction: column;
   height: 100vh;
+  position: relative;
+  transition: width 0.2s ease;
+}
+
+/* Remove transition during resize for better performance */
+.sidebar.resizing {
+  transition: none;
+}
+
+.sidebar.collapsed {
+  width: 50px !important;
 }
 
 .sidebar-header {
@@ -12,10 +23,52 @@
   border-bottom: 1px solid #3e3e42;
 }
 
+.sidebar.collapsed .sidebar-header {
+  padding: 10px 8px;
+}
+
+.sidebar-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sidebar.collapsed .sidebar-header-top {
+  margin-bottom: 0;
+  justify-content: center;
+}
+
 .sidebar-header h2 {
   font-size: 16px;
-  margin-bottom: 12px;
   color: #cccccc;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collapse-toggle-btn {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: all 0.2s;
+  min-width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-toggle-btn:hover {
+  background-color: #3e3e42;
+  border-color: #0e639c;
 }
 
 .search-container {
@@ -265,4 +318,25 @@
   margin-right: 6px;
   font-size: 12px;
   opacity: 0.8;
+}
+
+/* Resize handle */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+  z-index: 1001;
+}
+
+.resize-handle:hover {
+  background-color: #0e639c;
+}
+
+.resize-handle:active {
+  background-color: #1177bb;
 }

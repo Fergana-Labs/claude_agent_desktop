@@ -45,8 +45,89 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState<string>('');
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(260);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Load saved preferences from localStorage
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('sidebarWidth');
+    const savedCollapsed = localStorage.getItem('sidebarCollapsed');
+
+    if (savedWidth) {
+      const width = parseInt(savedWidth, 10);
+      if (width >= 200 && width <= 600) {
+        setSidebarWidth(width);
+      }
+    }
+
+    if (savedCollapsed) {
+      setIsCollapsed(savedCollapsed === 'true');
+    }
+  }, []);
+
+  // Handle resize drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const newWidth = e.clientX;
+
+      // Auto-collapse if resizing below 150px
+      if (newWidth < 150) {
+        setIsCollapsed(true);
+        localStorage.setItem('sidebarCollapsed', 'true');
+        return;
+      }
+
+      // If currently collapsed and resizing, expand it
+      if (isCollapsed && newWidth >= 150) {
+        setIsCollapsed(false);
+        localStorage.setItem('sidebarCollapsed', 'false');
+      }
+
+      if (newWidth >= 200 && newWidth <= 600) {
+        setSidebarWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+
+      // Save to localStorage only after drag ends to reduce I/O
+      if (!isCollapsed) {
+        localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+      }
+    };
+
+    if (isResizing) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, isCollapsed, sidebarWidth]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  const toggleCollapse = () => {
+    const newCollapsed = !isCollapsed;
+    setIsCollapsed(newCollapsed);
+    localStorage.setItem('sidebarCollapsed', newCollapsed.toString());
+  };
 
   // Search effect with debouncing
   useEffect(() => {
@@ -246,46 +327,64 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const unpinnedConversations = validatedConversations.filter(conv => !conv.isPinned);
 
   return (
-    <div className="sidebar">
+    <div
+      ref={sidebarRef}
+      className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isResizing ? 'resizing' : ''}`}
+      style={{ width: isCollapsed ? '50px' : `${sidebarWidth}px` }}
+    >
       <div className="sidebar-header">
-        <h2>Claude Office Assistant</h2>
-        <div className="search-container">
-          <input
-            ref={searchInputRef}
-            type="text"
-            className="search-input"
-            placeholder={`Search... (${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+K' : 'Ctrl+K'})`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              className="search-clear-btn"
-              onClick={() => setSearchQuery('')}
-              title="Clear search"
-            >
-              ×
-            </button>
-          )}
+        <div className="sidebar-header-top">
+          <h2>{isCollapsed ? '' : 'Claude Office Assistant'}</h2>
           <button
-            className={`case-sensitive-btn ${caseSensitive ? 'active' : ''}`}
-            onClick={() => setCaseSensitive(!caseSensitive)}
-            title={caseSensitive ? 'Case-sensitive' : 'Case-insensitive'}
+            className="collapse-toggle-btn"
+            onClick={toggleCollapse}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            Aa
+            {isCollapsed ? '›' : '‹'}
           </button>
         </div>
-        <button className="new-conversation-btn" onClick={onNewConversation}>
-          + New Chat
-          <span className="keyboard-hint">
-            {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+T' : 'Ctrl+T'}
-          </span>
-        </button>
+        {!isCollapsed && (
+          <>
+            <div className="search-container">
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="search-input"
+                placeholder={`Search... (${navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+K' : 'Ctrl+K'})`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  ×
+                </button>
+              )}
+              <button
+                className={`case-sensitive-btn ${caseSensitive ? 'active' : ''}`}
+                onClick={() => setCaseSensitive(!caseSensitive)}
+                title={caseSensitive ? 'Case-sensitive' : 'Case-insensitive'}
+              >
+                Aa
+              </button>
+            </div>
+            <button className="new-conversation-btn" onClick={onNewConversation}>
+              + New Chat
+              <span className="keyboard-hint">
+                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+T' : 'Ctrl+T'}
+              </span>
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="conversations-list">
-        {/* Pinned Conversations Section */}
-        {pinnedConversations.length > 0 && (
+      {!isCollapsed && (
+        <div className="conversations-list">
+          {/* Pinned Conversations Section */}
+          {pinnedConversations.length > 0 && (
           <>
             <div className="pinned-section-header">Pinned</div>
             {pinnedConversations.map((conv) => (
@@ -424,15 +523,25 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Settings Footer */}
-      {onShowSettings && (
+      {onShowSettings && !isCollapsed && (
         <div className="sidebar-footer">
           <button className="settings-btn" onClick={onShowSettings}>
             ⚙️ MCP Settings
           </button>
         </div>
+      )}
+
+      {/* Resize Handle */}
+      {!isCollapsed && (
+        <div
+          className="resize-handle"
+          onMouseDown={handleResizeStart}
+          title="Drag to resize"
+        />
       )}
 
       {/* Context Menu */}
