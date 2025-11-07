@@ -56,6 +56,7 @@ export class ClaudeAgent extends EventEmitter {
   private callbackQueue: MessageCallbacks[] = [];
   private currentCallbackIndex: number = 0;
   private streamedTextByCallback: Map<number, string> = new Map();
+  private needsReload: boolean = false;
 
   constructor(config: ClaudeAgentConfig) {
     super();
@@ -78,6 +79,13 @@ export class ClaudeAgent extends EventEmitter {
     attachments: string[] = [],
     callbacks: MessageCallbacks = {}
   ): Promise<void> {
+    // Check if MCP config needs to be reloaded before processing
+    if (this.needsReload) {
+      console.log('[ClaudeAgent] Applying new MCP configuration before processing message');
+      this.needsReload = false;
+      // Config has already been updated in reloadMcpConfig method
+    }
+
     // Add message to queue
     this.messageQueue.push({ message, attachments, callbacks });
 
@@ -519,6 +527,19 @@ export class ClaudeAgent extends EventEmitter {
       this.isInterrupted = false;
       await this.processQueue();
     }
+  }
+
+  // Reload MCP configuration
+  async reloadMcpConfig(newMcpServers?: Record<string, McpServerConfig>): Promise<void> {
+    console.log('[ClaudeAgent] Marking agent for MCP config reload');
+
+    // Update config if new servers provided
+    if (newMcpServers !== undefined) {
+      this.config.mcpServers = newMcpServers;
+    }
+
+    // Mark that reload is needed - will apply on next message
+    this.needsReload = true;
   }
 
   // Permission methods - handled by SDK mode

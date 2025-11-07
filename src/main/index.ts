@@ -91,8 +91,7 @@ app.whenReady().then(async () => {
   const mcpServers = await mcpConfigLoader.load();
   console.log('[Main] Loaded MCP servers:', Object.keys(mcpServers));
 
-  // Register MCP IPC handlers
-  registerMcpIpcHandlers(mcpConfigLoader);
+  // Note: Agent manager will be passed to IPC handlers after initialization
 
   // Initialize Agent Manager
   const pluginsPath = path.join(__dirname, '../../plugins');
@@ -111,6 +110,9 @@ app.whenReady().then(async () => {
     },
     conversationManager
   );
+
+  // Register MCP IPC handlers with agent manager reference
+  registerMcpIpcHandlers(mcpConfigLoader, agentManager);
 
   // Forward processing events to renderer
   agentManager.on('processing-started', (data: any) => {

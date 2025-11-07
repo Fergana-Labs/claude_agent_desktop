@@ -62,7 +62,13 @@ const McpSettings: React.FC = () => {
 
       const result = await window.electron.mcpSaveConfig(config);
       if (result.success) {
-        setSuccessMessage('Configuration saved successfully! Restart conversations to apply changes.');
+        // Trigger reload after successful save
+        const reloadResult = await window.electron.mcpReloadConfig();
+        if (reloadResult.success) {
+          setSuccessMessage(reloadResult.message || 'Configuration saved and reloaded successfully!');
+        } else {
+          setSuccessMessage('Configuration saved, but reload failed: ' + reloadResult.error);
+        }
         setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         setError(result.error || 'Failed to save configuration');

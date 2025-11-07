@@ -1,11 +1,15 @@
 import { ipcMain } from 'electron';
 import { McpConfigLoader } from './mcp-config.js';
 import { McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
+import { ConversationAgentManager } from './conversation-agent-manager.js';
 
 /**
  * Register MCP-related IPC handlers
  */
-export function registerMcpIpcHandlers(mcpConfigLoader: McpConfigLoader) {
+export function registerMcpIpcHandlers(
+  mcpConfigLoader: McpConfigLoader,
+  agentManager?: ConversationAgentManager
+) {
   /**
    * Get current MCP configuration
    */
@@ -70,6 +74,38 @@ export function registerMcpIpcHandlers(mcpConfigLoader: McpConfigLoader) {
     } catch (error: any) {
       console.error('[mcp:fileExists] Error:', error);
       return { success: false, exists: false, error: error.message };
+    }
+  });
+
+  /**
+   * Reload MCP configuration in all active agents
+   */
+  ipcMain.handle('mcp:reloadConfig', async () => {
+    try {
+      if (!agentManager) {
+        return {
+          success: false,
+          error: 'Agent manager not available'
+        };
+      }
+
+      // Load fresh config from file
+      const mcpServers = await mcpConfigLoader.load();
+
+      // Reload all agents with new config
+      await agentManager.reloadMcpConfig(mcpServers);
+
+      console.log('[mcp:reloadConfig] Successfully reloaded MCP configuration');
+      return {
+        success: true,
+        message: 'MCP configuration reloaded. Changes will apply on next message.'
+      };
+    } catch (error: any) {
+      console.error('[mcp:reloadConfig] Error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   });
 

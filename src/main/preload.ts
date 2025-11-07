@@ -107,6 +107,7 @@ contextBridge.exposeInMainWorld('electron', {
   mcpSaveConfig: (servers: any) => ipcRenderer.invoke('mcp:saveConfig', servers),
   mcpValidateConfig: (servers: any) => ipcRenderer.invoke('mcp:validateConfig', servers),
   mcpFileExists: () => ipcRenderer.invoke('mcp:fileExists'),
+  mcpReloadConfig: () => ipcRenderer.invoke('mcp:reloadConfig'),
 });
 
 // Type definitions for TypeScript
@@ -141,6 +142,7 @@ export interface ElectronAPI {
   mcpSaveConfig: (servers: any) => Promise<{ success: boolean; error?: string; validationErrors?: string[] }>;
   mcpValidateConfig: (servers: any) => Promise<{ success: boolean; errors: string[] }>;
   mcpFileExists: () => Promise<{ success: boolean; exists: boolean; error?: string }>;
+  mcpReloadConfig: () => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 declare global {

@@ -170,6 +170,27 @@ export class ConversationAgentManager extends EventEmitter {
   }
 
   /**
+   * Reload MCP configuration for all existing agents
+   * Agents will apply the new config on their next message
+   */
+  async reloadMcpConfig(newMcpServers?: Record<string, McpServerConfig>): Promise<void> {
+    console.log('[AgentManager] Reloading MCP configuration for all agents...');
+
+    // Update stored config
+    if (newMcpServers !== undefined) {
+      this.config.mcpServers = newMcpServers;
+    }
+
+    // Mark all existing agents for reload
+    const reloadPromises = Array.from(this.agents.values()).map(agent =>
+      agent.reloadMcpConfig(this.config.mcpServers)
+    );
+
+    await Promise.all(reloadPromises);
+    console.log('[AgentManager] MCP configuration reloaded for', this.agents.size, 'agents');
+  }
+
+  /**
    * Cleanup all agents (called on shutdown)
    */
   async cleanup(): Promise<void> {
