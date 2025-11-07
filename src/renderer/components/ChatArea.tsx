@@ -457,7 +457,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     // Search through all message content
     const matches: { element: HTMLElement; index: number }[] = [];
-    const messages = messagesContainerRef.current.querySelectorAll('.message-content, .thinking-content, .tool-use-content, .tool-result-content, .error-content');
+    const messages = messagesContainerRef.current.querySelectorAll('.message-content, .thinking-content, .tool-summary, .tool-input, .output-content, .error-content');
 
     messages.forEach((messageEl, msgIndex) => {
       const textContent = messageEl.textContent || '';
@@ -492,6 +492,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
 
     // Apply new highlights - case insensitive
+    // Track global match counter across all elements
+    let globalMatchCounter = 0;
+
+    // Group matches by element for efficient processing
     const groupedByElement = new Map<HTMLElement, number[]>();
     matches.forEach((match, idx) => {
       if (!groupedByElement.has(match.element)) {
@@ -513,16 +517,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
       // Clear element and rebuild with highlights
       element.innerHTML = '';
-      let matchCount = 0;
       parts.forEach(part => {
         if (part.toLowerCase() === query.toLowerCase() && part.length === query.length) {
-          // This is a match
-          const globalMatchIndex = matches.findIndex(m => m.element === element && matchCount === matches.filter(m2 => m2.element === element && m2.index < m.index).length);
+          // This is a match - check if it's the current one
           const span = document.createElement('span');
-          span.className = globalMatchIndex === currentIndex ? 'find-match-current' : 'find-match';
+          span.className = globalMatchCounter === currentIndex ? 'find-match-current' : 'find-match';
           span.textContent = part;
           element.appendChild(span);
-          matchCount++;
+          globalMatchCounter++;
         } else if (part) {
           element.appendChild(document.createTextNode(part));
         }
