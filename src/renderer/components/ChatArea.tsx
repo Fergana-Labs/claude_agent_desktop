@@ -38,6 +38,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [sendError, setSendError] = useState<{ message: string; details: string } | null>(null);
   const [errorExpanded, setErrorExpanded] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousScrollHeightRef = useRef<number>(0);
@@ -187,6 +188,23 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       removeProcessingCompleteListener();
     };
   }, [conversation]);
+
+  // Rotate loading messages every 3 seconds
+  useEffect(() => {
+    const loadingMessages = ["Thinking...", "One moment...", "Working on it...", "Processing..."];
+
+    // Only rotate when loading and no streaming content yet
+    if (isLoading && !streamingContent) {
+      const interval = setInterval(() => {
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    } else {
+      // Reset to first message when not loading
+      setLoadingMessageIndex(0);
+    }
+  }, [isLoading, streamingContent]);
 
   useEffect(() => {
     // Save current state before switching conversations
@@ -929,6 +947,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
               );
           }
         })}
+
+        {/* Loading message with rotation - shown before first token arrives */}
+        {isLoading && !streamingContent && (
+          <div className="message assistant streaming">
+            <div className="message-role">Claude</div>
+            <div className="message-content">
+              {["Thinking...", "One moment...", "Working on it...", "Processing..."][loadingMessageIndex]}
+              <span className="cursor">▊</span>
+            </div>
+          </div>
+        )}
 
         {streamingContent && (
           <div className="message assistant streaming">
