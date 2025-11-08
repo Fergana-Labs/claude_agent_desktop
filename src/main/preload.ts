@@ -70,6 +70,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('assistant-message-saved', subscription);
   },
 
+  // Listen for permission responded event (when user approves/denies a permission)
+  onPermissionResponded: (callback: (data: { conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
+    ipcRenderer.on('permission-responded', subscription);
+    return () => ipcRenderer.removeListener('permission-responded', subscription);
+  },
+
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
@@ -116,6 +123,9 @@ contextBridge.exposeInMainWorld('electron', {
   mcpValidateConfig: (servers: any) => ipcRenderer.invoke('mcp:validateConfig', servers),
   mcpFileExists: () => ipcRenderer.invoke('mcp:fileExists'),
   mcpReloadConfig: () => ipcRenderer.invoke('mcp:reloadConfig'),
+
+  // Notifications
+  playNotificationSound: () => ipcRenderer.invoke('play-notification-sound'),
 });
 
 // Type definitions for TypeScript
@@ -130,6 +140,7 @@ export interface ElectronAPI {
   onProcessingComplete: (callback: (data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => void) => () => void;
   onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
+  onPermissionResponded: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
   searchConversations: (query: string, caseSensitive: boolean) => Promise<any[]>;
   getActiveConversations: () => Promise<string[]>;
@@ -156,6 +167,7 @@ export interface ElectronAPI {
   mcpValidateConfig: (servers: any) => Promise<{ success: boolean; errors: string[] }>;
   mcpFileExists: () => Promise<{ success: boolean; exists: boolean; error?: string }>;
   mcpReloadConfig: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  playNotificationSound: () => Promise<{ success: boolean }>;
 }
 
 declare global {

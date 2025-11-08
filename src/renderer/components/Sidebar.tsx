@@ -421,21 +421,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                       <>
                         <span className="pin-icon">📌</span>
                         {conv.title}
-                        {activeConversations.has(conv.id) && (
-                          <span style={{
-                            marginLeft: '8px',
-                            background: '#ff9800',
-                            color: '#fff',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            fontSize: '10px',
-                            fontWeight: 'bold',
-                            animation: 'pulse 2s infinite'
-                          }}>
-                            In Progress
-                          </span>
-                        )}
-                        {conversationsWithActivity.has(conv.id) && (
+                        {conversationsWithActivity.has(conv.id) ? (
                           <span style={{
                             marginLeft: '8px',
                             background: '#4a9eff',
@@ -448,7 +434,20 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                           }}>
                             New
                           </span>
-                        )}
+                        ) : activeConversations.has(conv.id) ? (
+                          <span style={{
+                            marginLeft: '8px',
+                            background: '#ff9800',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            animation: 'pulse 2s infinite'
+                          }}>
+                            In Progress
+                          </span>
+                        ) : null}
                       </>
                     )}
                   </div>
@@ -505,21 +504,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 ) : (
                   <>
                     {conv.title}
-                    {activeConversations.has(conv.id) && (
-                      <span style={{
-                        marginLeft: '8px',
-                        background: '#ff9800',
-                        color: '#fff',
-                        padding: '2px 6px',
-                        borderRadius: '10px',
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        animation: 'pulse 2s infinite'
-                      }}>
-                        In Progress
-                      </span>
-                    )}
-                    {conversationsWithActivity.has(conv.id) && (
+                    {conversationsWithActivity.has(conv.id) ? (
                       <span style={{
                         marginLeft: '8px',
                         background: '#4a9eff',
@@ -532,7 +517,20 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                       }}>
                         New
                       </span>
-                    )}
+                    ) : activeConversations.has(conv.id) ? (
+                      <span style={{
+                        marginLeft: '8px',
+                        background: '#ff9800',
+                        color: '#fff',
+                        padding: '2px 6px',
+                        borderRadius: '10px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        animation: 'pulse 2s infinite'
+                      }}>
+                        In Progress
+                      </span>
+                    ) : null}
                   </>
                 )}
               </div>

@@ -16,6 +16,8 @@ function App() {
   const [activeConversations, setActiveConversations] = useState<Set<string>>(new Set());
   const [showFindBar, setShowFindBar] = useState(false);
   const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void; focusSearch: () => void } | null>(null);
+  const previousActivityRef = useRef<Set<string>>(new Set());
+  const lastEventTimestampRef = useRef<number>(0);
 
   useEffect(() => {
     // Check if electron API is available
@@ -33,6 +35,7 @@ function App() {
 
     // Listen for processing started
     const removeProcessingStartedListener = window.electron.onProcessingStarted((data) => {
+      lastEventTimestampRef.current = Date.now();
       setActiveConversations(prev => {
         const newSet = new Set(prev);
         newSet.add(data.conversationId);
@@ -42,7 +45,48 @@ function App() {
 
     // Listen for processing complete
     const removeProcessingCompleteListener = window.electron.onProcessingComplete((data) => {
+      lastEventTimestampRef.current = Date.now();
       setActiveConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.conversationId);
+        return newSet;
+      });
+
+      // Play beep for all processing completions
+      window.electron.playNotificationSound().catch(error => {
+        console.error('Error playing notification sound:', error);
+      });
+
+      // If processing completed for a conversation that's not current, mark it as needing attention
+      if (currentConversation?.id !== data.conversationId) {
+        setConversationsWithActivity(prev => {
+          const newSet = new Set(prev);
+          newSet.add(data.conversationId);
+          return newSet;
+        });
+      }
+    });
+
+    // Listen for permission requests - mark conversation as needing attention
+    const removePermissionListener = window.electron.onPermissionRequest((request: any) => {
+      // Play beep for all permission requests
+      window.electron.playNotificationSound().catch(error => {
+        console.error('Error playing notification sound:', error);
+      });
+
+      // If permission request is for a different conversation, mark it as needing attention
+      if (currentConversation?.id !== request.conversationId) {
+        setConversationsWithActivity(prev => {
+          const newSet = new Set(prev);
+          newSet.add(request.conversationId);
+          return newSet;
+        });
+      }
+    });
+
+    // Listen for permission responses - remove from conversationsWithActivity
+    const removePermissionRespondedListener = window.electron.onPermissionResponded((data) => {
+      setConversationsWithActivity(prev => {
         const newSet = new Set(prev);
         newSet.delete(data.conversationId);
         return newSet;
@@ -52,6 +96,12 @@ function App() {
     // Poll for active conversations periodically to sync state
     const pollActiveConversations = async () => {
       try {
+        // Don't poll if recent event (within 3 seconds) to avoid overriding fresh event data
+        const timeSinceLastEvent = Date.now() - lastEventTimestampRef.current;
+        if (timeSinceLastEvent < 3000) {
+          return; // Skip this poll cycle
+        }
+
         const active = await window.electron.getActiveConversations();
         setActiveConversations(new Set(active));
       } catch (error) {
@@ -68,9 +118,11 @@ function App() {
     return () => {
       removeProcessingStartedListener();
       removeProcessingCompleteListener();
+      removePermissionListener();
+      removePermissionRespondedListener();
       clearInterval(pollInterval);
     };
-  }, []);
+  }, [currentConversation]);
 
   // Global keyboard shortcuts
   useEffect(() => {

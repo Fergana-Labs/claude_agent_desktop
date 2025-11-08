@@ -102,12 +102,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         setPermissionRequests(newRequests);
       }
 
-      // Show browser notification with sound
+      // Show browser notification (silent - sound is played via shell.beep in App.tsx)
       if ('Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification('Permission Request', {
           body: `${request.tool}: ${request.action}`,
           icon: '/logo-icon.png',
           requireInteraction: true,
+          silent: true,
         });
 
         // Play sound

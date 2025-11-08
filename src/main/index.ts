@@ -351,6 +351,13 @@ ipcMain.handle('get-active-conversations', async () => {
   return agentManager.getActiveConversations();
 });
 
+ipcMain.handle('play-notification-sound', async () => {
+  // TODO: Check user settings when settings page is implemented
+  // For now, always play the sound
+  shell.beep();
+  return { success: true };
+});
+
 ipcMain.handle('get-conversation', async (event, conversationId: string, limit?: number, offset?: number) => {
   if (!conversationManager) {
     throw new Error('Services not initialized');
@@ -609,6 +616,10 @@ ipcMain.handle('approve-permission', async (event, permissionId: string, convers
   }
 
   agentManager.respondToPermissionRequest(targetConversationId, permissionId, true);
+
+  // Emit permission-responded event to notify frontend
+  mainWindow?.webContents.send('permission-responded', { conversationId: targetConversationId });
+
   return { success: true };
 });
 
@@ -623,6 +634,9 @@ ipcMain.handle('deny-permission', async (event, permissionId: string, conversati
   }
 
   agentManager.respondToPermissionRequest(targetConversationId, permissionId, false);
+
+  // Emit permission-responded event to notify frontend
+  mainWindow?.webContents.send('permission-responded', { conversationId: targetConversationId });
   return { success: true };
 });
 
