@@ -419,7 +419,7 @@ function App() {
         flexDirection: 'column',
         gap: '20px'
       }}>
-        <h2>Loading Claude Office Assistant...</h2>
+        <h2>Loading Claude Agent Desktop...</h2>
         <p>If this message persists, check the console for errors.</p>
       </div>
     );

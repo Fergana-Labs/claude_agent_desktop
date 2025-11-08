@@ -341,7 +341,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     >
       <div className="sidebar-header">
         <div className="sidebar-header-top">
-          <h2>{isCollapsed ? '' : 'Claude Office Assistant'}</h2>
+          <h2>{isCollapsed ? '' : 'Claude Agent Desktop'}</h2>
           <button
             className="collapse-toggle-btn"
             onClick={toggleCollapse}

@@ -1,7 +1,7 @@
 {
-  "name": "claude-office-assistant",
+  "name": "claude-agent-desktop",
   "version": "1.0.0",
-  "description": "Electron app with Claude Agent SDK and Microsoft Office tools",
+  "description": "Desktop application for Claude Agent with AI-powered coding assistance",
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
@@ -52,24 +52,28 @@
     "react-markdown": "^9.0.1"
   },
   "build": {
-    "appId": "com.claude.office.assistant",
-    "productName": "Claude Office Assistant",
+    "appId": "com.claude.agent.desktop",
+    "productName": "Claude Agent Desktop",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
       ".claude/**/*",
-      "plugins/**/*"
+      "plugins/**/*",
+      "logo-icon.png"
     ],
     "mac": {
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "logo-icon.png"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "logo-icon.png"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "logo-icon.png"
     }
   }
 }
