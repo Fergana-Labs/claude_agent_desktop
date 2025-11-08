@@ -1,7 +1,7 @@
 .sidebar {
   min-width: 50px;
-  background-color: #252526;
-  border-right: 1px solid #3e3e42;
+  background-color: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -20,7 +20,7 @@
 
 .sidebar-header {
   padding: 20px;
-  border-bottom: 1px solid #3e3e42;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar.collapsed .sidebar-header {
@@ -41,7 +41,7 @@
 
 .sidebar-header h2 {
   font-size: 16px;
-  color: #cccccc;
+  color: var(--text-secondary);
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -50,9 +50,9 @@
 
 .collapse-toggle-btn {
   background: none;
-  border: 1px solid #555;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  color: #cccccc;
+  color: var(--text-secondary);
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
@@ -67,8 +67,8 @@
 }
 
 .collapse-toggle-btn:hover {
-  background-color: #3e3e42;
-  border-color: #0e639c;
+  background-color: var(--bg-hover);
+  border-color: var(--accent-blue);
 }
 
 .search-container {
@@ -82,21 +82,21 @@
 .search-input {
   flex: 1;
   padding: 8px 32px 8px 10px;
-  background-color: #3c3c3c;
-  border: 1px solid #555;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  color: #cccccc;
+  color: var(--text-secondary);
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
 }
 
 .search-input:focus {
-  border-color: #0e639c;
+  border-color: var(--accent-blue);
 }
 
 .search-input::placeholder {
-  color: #858585;
+  color: var(--text-tertiary);
 }
 
 .search-clear-btn {
@@ -106,7 +106,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #858585;
+  color: var(--text-tertiary);
   font-size: 20px;
   cursor: pointer;
   padding: 0;
@@ -120,15 +120,15 @@
 }
 
 .search-clear-btn:hover {
-  background-color: #4e4e52;
-  color: #cccccc;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .case-sensitive-btn {
-  background-color: #3c3c3c;
-  border: 1px solid #555;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  color: #858585;
+  color: var(--text-tertiary);
   font-size: 12px;
   font-weight: 600;
   padding: 8px 10px;
@@ -138,18 +138,18 @@
 }
 
 .case-sensitive-btn:hover {
-  background-color: #4e4e52;
+  background-color: var(--bg-hover);
 }
 
 .case-sensitive-btn.active {
-  background-color: #0e639c;
-  border-color: #0e639c;
+  background-color: var(--accent-blue);
+  border-color: var(--accent-blue);
   color: #fff;
 }
 
 .search-match-snippet {
   font-size: 11px;
-  color: #999;
+  color: var(--text-tertiary);
   margin-top: 4px;
   margin-bottom: 4px;
   line-height: 1.4;
@@ -163,7 +163,7 @@
 .new-conversation-btn {
   width: 100%;
   padding: 10px;
-  background-color: #0e639c;
+  background-color: var(--accent-blue);
   color: white;
   border: none;
   border-radius: 4px;
@@ -196,15 +196,15 @@
 }
 
 .conversation-item:hover {
-  background-color: #2a2d2e;
+  background-color: var(--bg-secondary);
 }
 
 .conversation-item.active {
-  background-color: #37373d;
+  background-color: var(--bg-hover);
 }
 
 .conversation-item.focused {
-  background-color: #1e1e1e;
+  background-color: var(--bg-primary);
 }
 
 .conversation-info {
@@ -214,7 +214,7 @@
 
 .conversation-title {
   font-size: 14px;
-  color: #cccccc;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -223,7 +223,7 @@
 
 .conversation-date {
   font-size: 12px;
-  color: #858585;
+  color: var(--text-tertiary);
 }
 
 .delete-btn {
@@ -231,7 +231,7 @@
   height: 24px;
   background: none;
   border: none;
-  color: #858585;
+  color: var(--text-tertiary);
   font-size: 20px;
   cursor: pointer;
   display: none;
@@ -247,21 +247,21 @@
 }
 
 .delete-btn:hover {
-  background-color: #3e3e42;
-  color: #cccccc;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 .sidebar-footer {
   padding: 12px 20px;
-  border-top: 1px solid #3e3e42;
-  background-color: #252526;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
 }
 
 .settings-btn {
   width: 100%;
   padding: 10px;
-  background-color: #3e3e42;
-  color: #cccccc;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -275,14 +275,15 @@
 }
 
 .settings-btn:hover {
-  background-color: #4e4e52;
+  background-color: var(--bg-hover);
+  filter: brightness(1.2);
 }
 
 .title-edit-input-sidebar {
-  background: #3c3c3c;
-  border: 1px solid #0e639c;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-blue);
   border-radius: 4px;
-  color: #cccccc;
+  color: var(--text-secondary);
   font-size: 14px;
   padding: 4px 8px;
   outline: none;
@@ -292,7 +293,7 @@
 
 .keyboard-hint {
   font-size: 11px;
-  color: #888;
+  color: var(--text-tertiary);
   margin-left: 8px;
   opacity: 0.7;
   font-weight: normal;
@@ -303,14 +304,14 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #888;
+  color: var(--text-tertiary);
   padding: 8px 12px 4px;
   letter-spacing: 0.5px;
 }
 
 .section-divider {
   height: 1px;
-  background-color: #3e3e42;
+  background-color: var(--border-color);
   margin: 8px 0;
 }
 
@@ -334,7 +335,7 @@
 }
 
 .resize-handle:hover {
-  background-color: #0e639c;
+  background-color: var(--accent-blue);
 }
 
 .resize-handle:active {

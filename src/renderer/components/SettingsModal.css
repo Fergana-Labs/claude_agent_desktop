@@ -12,7 +12,7 @@
 }
 
 .settings-modal-content {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 8px;
   width: 800px;
   max-width: 90vw;
@@ -27,12 +27,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 24px 24px 16px 24px;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .settings-modal-header h2 {
   margin: 0;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 600;
 }
@@ -40,7 +40,7 @@
 .settings-close-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
@@ -55,21 +55,21 @@
 }
 
 .settings-close-btn:hover {
-  background: #444;
-  color: #fff;
+  background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .settings-tabs {
   display: flex;
   gap: 0;
   padding: 0 24px;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .settings-tab {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 14px;
   font-weight: 500;
   padding: 12px 20px;
@@ -81,13 +81,13 @@
 }
 
 .settings-tab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .settings-tab.active {
-  color: #4a9eff;
-  border-bottom-color: #4a9eff;
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
 }
 
 .settings-tab-content {
@@ -102,14 +102,14 @@
 }
 
 .settings-tab-content::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--bg-primary);
 }
 
 .settings-tab-content::-webkit-scrollbar-thumb {
-  background: #444;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 .settings-tab-content::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--border-color);
 }

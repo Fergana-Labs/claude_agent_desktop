@@ -12,7 +12,7 @@
 }
 
 .modal-content {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 8px;
   padding: 24px;
   width: 500px;
@@ -22,19 +22,19 @@
 
 .modal-content h2 {
   margin: 0 0 8px 0;
-  color: #fff;
+  color: var(--text-primary);
   font-size: 20px;
 }
 
 .modal-content p {
   margin: 0 0 20px 0;
-  color: #aaa;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .folder-display {
-  background: #1e1e1e;
-  border: 1px solid #444;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 12px;
   margin-bottom: 16px;
@@ -52,24 +52,24 @@
 
 .path-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-tertiary);
   text-transform: uppercase;
 }
 
 .path-value {
   font-size: 13px;
-  color: #fff;
+  color: var(--text-primary);
   word-break: break-all;
 }
 
 .no-selection {
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 13px;
   font-style: italic;
 }
 
 .select-folder-btn {
-  background: #0066cc;
+  background: var(--accent-blue);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -80,7 +80,7 @@
 }
 
 .select-folder-btn:hover {
-  background: #0052a3;
+  background: var(--accent-blue);
 }
 
 .mode-selection {
@@ -91,15 +91,15 @@
 }
 
 .mode-selection label {
-  color: #fff;
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
 }
 
 .mode-select {
-  background: #1e1e1e;
-  color: #fff;
-  border: 1px solid #444;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   padding: 8px 12px;
   border-radius: 4px;
   font-size: 14px;
@@ -107,12 +107,12 @@
 }
 
 .mode-select:hover {
-  border-color: #666;
+  border-color: var(--text-tertiary);
 }
 
 .mode-select:focus {
   outline: none;
-  border-color: #0066cc;
+  border-color: var(--accent-blue);
 }
 
 .modal-actions {
@@ -131,25 +131,25 @@
 }
 
 .cancel-btn {
-  background: #444;
-  color: #fff;
+  background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .cancel-btn:hover {
-  background: #555;
+  background: var(--border-color);
 }
 
 .confirm-btn {
-  background: #0066cc;
+  background: var(--accent-blue);
   color: white;
 }
 
 .confirm-btn:hover {
-  background: #0052a3;
+  background: var(--accent-blue);
 }
 
 .confirm-btn:disabled {
-  background: #333;
-  color: #666;
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
   cursor: not-allowed;
 }

@@ -1,5 +1,5 @@
 .mcp-settings-tab {
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .tab-description {
@@ -7,7 +7,7 @@
 }
 
 .tab-description p {
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 13px;
   line-height: 1.5;
   margin: 0;
@@ -30,13 +30,13 @@
 .error-message {
   background-color: rgba(220, 53, 69, 0.1);
   border: 1px solid rgba(220, 53, 69, 0.3);
-  color: #ff6b6b;
+  color: var(--accent-red);
 }
 
 .success-message {
   background-color: rgba(40, 167, 69, 0.1);
   border: 1px solid rgba(40, 167, 69, 0.3);
-  color: #51cf66;
+  color: var(--accent-green);
 }
 
 .dismiss-btn {
@@ -64,16 +64,16 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 16px 0;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .empty-state {
   text-align: center;
   padding: 2rem;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--bg-tertiary);
   border-radius: 8px;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  color: #b0b0b0;
+  border: 1px dashed var(--border-color);
+  color: var(--text-tertiary);
 }
 
 .empty-state p {
@@ -81,8 +81,8 @@
 }
 
 .server-item {
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -106,13 +106,13 @@
 .server-main-info h4 {
   font-size: 1rem;
   margin: 0 0 0.5rem 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .server-url {
   font-size: 0.9rem;
-  color: #6c9ef8;
+  color: var(--accent-blue);
   font-family: 'Consolas', 'Monaco', monospace;
   word-break: break-all;
 }
@@ -135,9 +135,9 @@
 .edit-btn {
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
@@ -147,7 +147,7 @@
 .edit-btn:hover {
   background-color: rgba(64, 123, 255, 0.2);
   border-color: rgba(64, 123, 255, 0.4);
-  color: #6c9ef8;
+  color: var(--accent-blue);
 }
 
 .test-btn {
@@ -155,7 +155,7 @@
   border-radius: 4px;
   border: 1px solid rgba(64, 123, 255, 0.4);
   background-color: rgba(64, 123, 255, 0.2);
-  color: #6c9ef8;
+  color: var(--accent-blue);
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 600;
@@ -175,9 +175,9 @@
 .mcp-delete-btn {
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
@@ -187,7 +187,7 @@
 .mcp-delete-btn:hover {
   background-color: rgba(220, 53, 69, 0.2);
   border-color: rgba(220, 53, 69, 0.4);
-  color: #ff6b6b;
+  color: var(--accent-red);
 }
 
 .advanced-section {
@@ -200,10 +200,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  color: #b0b0b0;
+  color: var(--text-tertiary);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
@@ -212,8 +212,8 @@
 }
 
 .accordion-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .accordion-icon {
@@ -229,7 +229,7 @@
 .advanced-content {
   margin-top: 1rem;
   padding: 1rem;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--bg-tertiary);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -237,8 +237,8 @@
 }
 
 .add-server-section {
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 32px;
@@ -248,7 +248,7 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 16px 0;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .form-group {
@@ -261,15 +261,15 @@
 .form-group label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .form-group input {
   padding: 0.7rem;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   font-size: 0.95rem;
   font-family: inherit;
 }
@@ -280,8 +280,8 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: rgba(64, 123, 255, 0.5);
-  background-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-blue);
+  background-color: var(--bg-hover);
 }
 
 .add-btn {
@@ -294,7 +294,7 @@
   cursor: pointer;
   transition: all 0.2s;
   background-color: rgba(64, 123, 255, 0.2);
-  color: #6c9ef8;
+  color: var(--accent-blue);
   border: 1px solid rgba(64, 123, 255, 0.4);
   margin-top: 1rem;
 }
@@ -322,7 +322,7 @@
 .save-btn {
   flex: 1;
   background-color: rgba(40, 167, 69, 0.2);
-  color: #51cf66;
+  color: var(--accent-green);
   border: 1px solid rgba(40, 167, 69, 0.4);
 }
 
@@ -336,28 +336,28 @@
 }
 
 .reload-btn {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .reload-btn:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-hover);
 }
 
 .settings-info {
   padding: 1.5rem;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--bg-tertiary);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #b0b0b0;
+  border: 1px solid var(--border-color);
+  color: var(--text-tertiary);
   font-size: 0.9rem;
 }
 
 .settings-info h3 {
   font-size: 1rem;
   margin-bottom: 0.75rem;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .settings-info p {
@@ -366,12 +366,12 @@
 }
 
 .settings-info code {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-hover);
   padding: 0.2rem 0.4rem;
   border-radius: 3px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 0.85rem;
-  color: #6c9ef8;
+  color: var(--accent-blue);
 }
 
 .info-callout {

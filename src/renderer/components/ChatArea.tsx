@@ -1057,16 +1057,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                 setSendError(null);
                 setErrorExpanded(false);
               }}
-              style={{
-                marginTop: '8px',
-                padding: '6px 12px',
-                background: '#3e3e42',
-                border: 'none',
-                borderRadius: '4px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '13px'
-              }}
+              className="error-dismiss-btn"
             >
               Dismiss
             </button>
@@ -1075,24 +1066,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
         {/* Permission Requests */}
         {permissionRequests.map(request => (
-          <div key={request.id} style={{
-            background: '#2a2a2a',
-            border: '2px solid #faad14',
-            borderRadius: '8px',
-            padding: '16px',
-            margin: '10px 0',
-            animation: 'pulse 2s infinite'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <div key={request.id} className="permission-request-box">
+            <div className="permission-header">
               <span style={{ fontSize: '24px' }}>⚠️</span>
-              <strong style={{ color: '#faad14', fontSize: '16px' }}>Permission Required</strong>
+              <strong className="permission-title">Permission Required</strong>
             </div>
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ color: '#ddd', marginBottom: '4px' }}>
+              <div className="permission-description">
                 <strong>{request.tool}</strong> wants to: {request.action}
               </div>
               {request.details && (
-                <div style={{ color: '#888', fontSize: '13px', fontFamily: 'monospace' }}>
+                <div className="permission-details">
                   {request.details}
                 </div>
               )}
@@ -1100,29 +1084,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => handleApprovePermission(request.id)}
-                style={{
-                  background: '#52c41a',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
+                className="permission-approve-btn"
               >
                 ✓ Approve
               </button>
               <button
                 onClick={() => handleDenyPermission(request.id)}
-                style={{
-                  background: '#f5222d',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
+                className="permission-deny-btn"
               >
                 ✗ Deny
               </button>
@@ -1198,34 +1166,27 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
         {/* Auto-Accept All Warning Modal */}
         {showAutoAcceptWarning && (
-          <div style={{
-            background: '#2a2a2a',
-            border: '2px solid #f5222d',
-            borderRadius: '8px',
-            padding: '16px',
-            margin: '10px 0',
-            animation: 'pulse 2s infinite'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <div className="auto-accept-warning-box">
+            <div className="warning-header">
               <span style={{ fontSize: '24px' }}>⚠️</span>
-              <strong style={{ color: '#f5222d', fontSize: '16px' }}>Warning: Auto-Accept All Mode</strong>
+              <strong className="warning-title">Warning: Auto-Accept All Mode</strong>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: '#ddd', marginBottom: '8px' }}>
+              <div className="warning-description">
                 You are about to enable <strong>Auto-Accept All</strong> mode, which will:
               </div>
-              <ul style={{ color: '#ddd', marginLeft: '20px', marginBottom: '8px' }}>
+              <ul className="warning-list">
                 <li>Automatically approve ALL tool executions without asking</li>
                 <li>Allow Claude to read, write, and delete files</li>
                 <li>Allow Claude to run arbitrary commands</li>
                 <li>Potentially cause data loss or system changes</li>
               </ul>
-              <div style={{ color: '#f5222d', fontSize: '13px', fontWeight: 'bold' }}>
+              <div className="warning-danger">
                 Only use this mode if you fully trust the current conversation context.
               </div>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ddd', cursor: 'pointer' }}>
+              <label className="warning-checkbox-label">
                 <input
                   type="checkbox"
                   checked={dontShowAgainChecked}
@@ -1238,29 +1199,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={handleCancelAutoAccept}
-                style={{
-                  background: '#3e3e42',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
+                className="warning-cancel-btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmAutoAccept}
-                style={{
-                  background: '#f5222d',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
+                className="warning-confirm-btn"
               >
                 Enable Auto-Accept All
               </button>
@@ -1319,18 +1264,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
       {/* Mode Selector Bar - Moved below input */}
       <div className="mode-selector-bar">
-        <span style={{ color: '#888', fontSize: '13px' }}>Mode:</span>
+        <span className="mode-label">Mode:</span>
         <select
           value={mode}
           onChange={(e) => handleModeChange(e.target.value as PermissionMode)}
           disabled={!folderExists}
+          className="mode-select"
           style={{
-            background: '#1e1e1e',
             border: `1px solid ${getModeColor(mode)}`,
             color: getModeColor(mode),
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '13px',
             cursor: folderExists ? 'pointer' : 'not-allowed',
           }}
         >
@@ -1339,13 +1281,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           <option value="bypassPermissions">Auto-Accept All</option>
           <option value="plan">Plan Mode</option>
         </select>
-        <div style={{
+        <div className="mode-badge" style={{
           background: getModeColor(mode),
-          color: '#fff',
-          padding: '2px 8px',
-          borderRadius: '10px',
-          fontSize: '11px',
-          fontWeight: 'bold'
         }}>
           {getModeLabel(mode)}
         </div>

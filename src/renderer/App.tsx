@@ -20,6 +20,11 @@ function App() {
   const lastEventTimestampRef = useRef<number>(0);
 
   useEffect(() => {
+    // Load and apply theme
+    const savedTheme = localStorage.getItem('theme');
+    const theme = (savedTheme === 'light' || savedTheme === 'dark') ? savedTheme : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+
     // Check if electron API is available
     if (window.electron) {
       setIsElectronReady(true);

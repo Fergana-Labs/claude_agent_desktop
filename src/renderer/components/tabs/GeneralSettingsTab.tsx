@@ -34,10 +34,9 @@ const GeneralSettingsTab: React.FC = () => {
     }
 
     const savedTheme = localStorage.getItem('theme') as ThemeType | null;
-    if (savedTheme && ['dark', 'light'].includes(savedTheme)) {
-      setTheme(savedTheme);
-      applyTheme(savedTheme);
-    }
+    const initialTheme = (savedTheme && ['dark', 'light'].includes(savedTheme)) ? savedTheme : 'dark';
+    setTheme(initialTheme);
+    applyTheme(initialTheme);
 
     const savedAudio = localStorage.getItem('audioNotificationsEnabled');
     setAudioEnabled(savedAudio !== 'false'); // Default to true if not set
