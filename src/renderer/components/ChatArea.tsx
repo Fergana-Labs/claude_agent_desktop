@@ -25,6 +25,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [folderExists, setFolderExists] = useState(true);
   const [mode, setMode] = useState<PermissionMode>('default');
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequest[]>([]);
+  const [currentPermissionIndex, setCurrentPermissionIndex] = useState(0);
   const [planApprovalRequests, setPlanApprovalRequests] = useState<PlanApprovalRequest[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -149,6 +150,20 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       // This event just signals that interruption was requested
     });
 
+    // Set up clear permissions listener
+    const removeClearPermissionsListener = window.electron.onClearPermissions((data: { conversationId: string }) => {
+      // Clear permission requests for the conversation that was interrupted
+      if (conversation?.id === data.conversationId) {
+        console.log('[ChatArea] Clearing permission requests due to interrupt');
+        setPermissionRequests([]);
+        setCurrentPermissionIndex(0);
+        setPlanApprovalRequests([]);
+        // Also clear from conversation ref
+        conversationPermissionsRef.current.set(data.conversationId, []);
+        conversationPlanApprovalsRef.current.set(data.conversationId, []);
+      }
+    });
+
     // Set up user message saved listener (triggers immediate conversation refresh and sidebar reorder)
     const removeUserMessageSavedListener = window.electron.onUserMessageSaved((data: { conversationId: string }) => {
       // Refresh conversation list to show the user's message and update sidebar sort order
@@ -209,6 +224,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       removePermissionListener();
       removePlanApprovalListener();
       removeInterruptListener();
+      removeClearPermissionsListener();
       removeUserMessageSavedListener();
       removeAssistantMessageSavedListener();
       removeProcessingStartedListener();
@@ -261,6 +277,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       setIsLoading(savedLoading);
       setStreamingContent(savedStreaming);
       setPermissionRequests(savedPermissions);
+      setCurrentPermissionIndex(0); // Reset to first permission when switching conversations
       setPlanApprovalRequests(savedPlanApprovals);
     } else {
       // Clear all state when no conversation
@@ -269,6 +286,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       setIsLoading(false);
       setStreamingContent('');
       setPermissionRequests([]);
+      setCurrentPermissionIndex(0);
       setPlanApprovalRequests([]);
     }
   }, [conversation?.id]);
@@ -769,6 +787,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       if (conversation?.id) {
         conversationPermissionsRef.current.set(conversation.id, newRequests);
       }
+      // Reset to first permission if we removed the current one and there are more
+      if (currentPermissionIndex >= newRequests.length && newRequests.length > 0) {
+        setCurrentPermissionIndex(0);
+      }
     } catch (error) {
       console.error('Error approving permission:', error);
     }
@@ -781,6 +803,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       setPermissionRequests(newRequests);
       if (conversation?.id) {
         conversationPermissionsRef.current.set(conversation.id, newRequests);
+      }
+      // Reset to first permission if we removed the current one and there are more
+      if (currentPermissionIndex >= newRequests.length && newRequests.length > 0) {
+        setCurrentPermissionIndex(0);
       }
     } catch (error) {
       console.error('Error denying permission:', error);
@@ -1064,39 +1090,47 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           </div>
         )}
 
-        {/* Permission Requests */}
-        {permissionRequests.map(request => (
-          <div key={request.id} className="permission-request-box">
-            <div className="permission-header">
-              <span style={{ fontSize: '24px' }}>⚠️</span>
-              <strong className="permission-title">Permission Required</strong>
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <div className="permission-description">
-                <strong>{request.tool}</strong> wants to: {request.action}
+        {/* Permission Requests - Show one at a time */}
+        {permissionRequests.length > 0 && currentPermissionIndex < permissionRequests.length && (() => {
+          const request = permissionRequests[currentPermissionIndex];
+          return (
+            <div key={request.id} className="permission-request-box">
+              <div className="permission-header">
+                <span style={{ fontSize: '24px' }}>⚠️</span>
+                <strong className="permission-title">Permission Required</strong>
+                {permissionRequests.length > 1 && (
+                  <span style={{ marginLeft: 'auto', color: '#888', fontSize: '14px' }}>
+                    {currentPermissionIndex + 1} of {permissionRequests.length}
+                  </span>
+                )}
               </div>
-              {request.details && (
-                <div className="permission-details">
-                  {request.details}
+              <div style={{ marginBottom: '12px' }}>
+                <div className="permission-description">
+                  <strong>{request.tool}</strong> wants to: {request.action}
                 </div>
-              )}
+                {request.details && (
+                  <div className="permission-details">
+                    {request.details}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => handleApprovePermission(request.id)}
+                  className="permission-approve-btn"
+                >
+                  ✓ Approve
+                </button>
+                <button
+                  onClick={() => handleDenyPermission(request.id)}
+                  className="permission-deny-btn"
+                >
+                  ✗ Deny
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => handleApprovePermission(request.id)}
-                className="permission-approve-btn"
-              >
-                ✓ Approve
-              </button>
-              <button
-                onClick={() => handleDenyPermission(request.id)}
-                className="permission-deny-btn"
-              >
-                ✗ Deny
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })()}
 
         {/* Plan Approval Requests */}
         {planApprovalRequests.map(request => (

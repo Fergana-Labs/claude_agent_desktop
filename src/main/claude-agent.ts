@@ -218,7 +218,7 @@ export class ClaudeAgent extends EventEmitter {
         // Handle streaming messages from SDK with abort checking
         for await (const sdkMessage of this.currentQuery) {
           // Check if abort was signaled - break immediately
-          if (this.abortController.signal.aborted) {
+          if (this.abortController?.signal.aborted) {
             console.log('[ClaudeAgent] Abort signal detected, breaking out of message loop');
             throw new Error('AbortError');
           }
@@ -738,9 +738,32 @@ export class ClaudeAgent extends EventEmitter {
         }
       });
 
-      // Clear the query reference and processing flag
-      this.currentQuery = null;
-      this.abortController = null;
+      // Clean up pending permission requests by rejecting them
+      const interruptError = new Error('Interrupted by user');
+      const hadPendingRequests = this.pendingPermissionRequests.size > 0 || this.pendingPlanApprovals.size > 0;
+
+      this.pendingPermissionRequests.forEach((request, requestId) => {
+        console.log('[ClaudeAgent] Rejecting pending permission request:', requestId);
+        request.reject(interruptError);
+      });
+      this.pendingPermissionRequests.clear();
+
+      // Clean up pending plan approvals by rejecting them
+      this.pendingPlanApprovals.forEach((request, requestId) => {
+        console.log('[ClaudeAgent] Rejecting pending plan approval:', requestId);
+        request.reject(interruptError);
+      });
+      this.pendingPlanApprovals.clear();
+
+      // Emit event to clear permission UI if we had pending requests
+      if (hadPendingRequests) {
+        this.emit('clear-permissions');
+      }
+
+      // Don't set currentQuery/abortController to null here - let the processQueue finally block handle cleanup
+      // This avoids race conditions where processQueue might still be accessing these
+
+      // Clear processing flag so new messages can be sent after interrupt
       this.isProcessing = false;
 
       // Emit processing-complete event so frontend can update UI

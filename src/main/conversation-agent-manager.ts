@@ -90,6 +90,11 @@ export class ConversationAgentManager extends EventEmitter {
       this.emit('processing-complete', { conversationId, ...data });
     });
 
+    agent.on('clear-permissions', () => {
+      console.log('[AgentManager] Clear permissions for conversation:', conversationId);
+      this.emit('clear-permissions', { conversationId });
+    });
+
     // Store agent in map
     this.agents.set(conversationId, agent);
 

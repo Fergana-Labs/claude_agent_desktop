@@ -84,6 +84,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('permission-responded', subscription);
   },
 
+  // Listen for clear permissions event (when interrupting)
+  onClearPermissions: (callback: (data: { conversationId: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
+    ipcRenderer.on('clear-permissions', subscription);
+    return () => ipcRenderer.removeListener('clear-permissions', subscription);
+  },
+
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
@@ -161,6 +168,7 @@ export interface ElectronAPI {
   onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onPermissionResponded: (callback: (data: { conversationId: string }) => void) => () => void;
+  onClearPermissions: (callback: (data: { conversationId: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
   searchConversations: (query: string, caseSensitive: boolean) => Promise<any[]>;
   getActiveConversations: () => Promise<string[]>;

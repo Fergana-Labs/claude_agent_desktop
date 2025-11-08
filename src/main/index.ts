@@ -125,6 +125,11 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('processing-complete', data);
   });
 
+  agentManager.on('clear-permissions', (data: any) => {
+    console.log('[Main] Clear permissions:', data);
+    mainWindow?.webContents.send('clear-permissions', data);
+  });
+
   createWindow();
 
   app.on('activate', () => {
