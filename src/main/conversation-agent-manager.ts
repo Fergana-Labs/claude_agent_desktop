@@ -1,4 +1,4 @@
-import { ClaudeAgent, PermissionMode } from './claude-agent.js';
+import { ClaudeAgent, PermissionMode, PlanApprovalRequest } from './claude-agent.js';
 import { ConversationManager } from './conversation-manager.js';
 import { EventEmitter } from 'events';
 import { McpServerConfig } from '@anthropic-ai/claude-agent-sdk';
@@ -9,6 +9,7 @@ interface MessageCallbacks {
   onToolUse?: (toolName: string, toolInput: any) => void;
   onToolResult?: (toolName: string, result: any) => void;
   onPermissionRequest?: (request: any) => void;
+  onPlanApprovalRequest?: (request: PlanApprovalRequest) => void;
   onInterrupted?: () => void;
 }
 
@@ -157,6 +158,18 @@ export class ConversationAgentManager extends EventEmitter {
     const agent = this.agents.get(conversationId);
     if (agent) {
       agent.respondToPermissionRequest(requestId, approved, updatedInput);
+    } else {
+      console.warn('[AgentManager] No agent found for conversation:', conversationId);
+    }
+  }
+
+  /**
+   * Handle plan approval response
+   */
+  respondToPlanApproval(conversationId: string, requestId: string, approved: boolean): void {
+    const agent = this.agents.get(conversationId);
+    if (agent) {
+      agent.respondToPlanApproval(requestId, approved);
     } else {
       console.warn('[AgentManager] No agent found for conversation:', conversationId);
     }

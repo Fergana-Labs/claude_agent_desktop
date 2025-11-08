@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Conversation, ToolExecution, PermissionRequest, PermissionMode } from '../types';
+import { Conversation, ToolExecution, PermissionRequest, PlanApprovalRequest, PermissionMode } from '../types';
 import { ToolUseMessage } from './ToolUseMessage';
 import { ToolResultMessage } from './ToolResultMessage';
 import { ThinkingMessage } from './ThinkingMessage';
@@ -25,6 +25,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const [folderExists, setFolderExists] = useState(true);
   const [mode, setMode] = useState<PermissionMode>('default');
   const [permissionRequests, setPermissionRequests] = useState<PermissionRequest[]>([]);
+  const [planApprovalRequests, setPlanApprovalRequests] = useState<PlanApprovalRequest[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -54,6 +55,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const conversationLoadingRef = useRef<Map<string, boolean>>(new Map());
   const conversationStreamingRef = useRef<Map<string, string>>(new Map());
   const conversationPermissionsRef = useRef<Map<string, PermissionRequest[]>>(new Map());
+  const conversationPlanApprovalsRef = useRef<Map<string, PlanApprovalRequest[]>>(new Map());
 
   useEffect(() => {
     // Set up streaming token listener with throttling to reduce "twitchy" behavior
@@ -111,6 +113,33 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           silent: true,
         });
         // Audio playback removed - sound is played via shell.beep in App.tsx
+      }
+    });
+
+    // Set up plan approval request listener
+    const removePlanApprovalListener = window.electron.onPlanApprovalRequest((request: PlanApprovalRequest & { conversationId: string }) => {
+      // Store the plan approval request for the conversation it belongs to
+      const currentRequests = conversationPlanApprovalsRef.current.get(request.conversationId) || [];
+      const newRequests = [...currentRequests, request];
+      conversationPlanApprovalsRef.current.set(request.conversationId, newRequests);
+
+      // Only update UI if this is the currently viewed conversation
+      if (conversation?.id === request.conversationId) {
+        console.log('[ChatArea] Plan approval request received:', request);
+        setPlanApprovalRequests(newRequests);
+      }
+
+      // Show browser notification with sound
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('Plan Approval Required', {
+          body: 'Claude has created a plan and needs your approval to proceed',
+          icon: '/logo-icon.png',
+          requireInteraction: true,
+        });
+
+        // Play sound
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi1+z/LTgjMGHm7A7+OZSA0PVqnm77BdGAU+lt3ywHMnBSl6zPDijz8KFF+47OelUxIKQ5zi8r1nIgU=');
+        audio.play().catch(() => {});
       }
     });
 
@@ -178,6 +207,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     return () => {
       removeTokenListener();
       removePermissionListener();
+      removePlanApprovalListener();
       removeInterruptListener();
       removeUserMessageSavedListener();
       removeAssistantMessageSavedListener();
@@ -224,12 +254,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       const savedLoading = conversationLoadingRef.current.get(conversation.id) || false;
       const savedStreaming = conversationStreamingRef.current.get(conversation.id) || '';
       const savedPermissions = conversationPermissionsRef.current.get(conversation.id) || [];
+      const savedPlanApprovals = conversationPlanApprovalsRef.current.get(conversation.id) || [];
 
       setInput(savedInput);
       setAttachedFiles(savedAttachments);
       setIsLoading(savedLoading);
       setStreamingContent(savedStreaming);
       setPermissionRequests(savedPermissions);
+      setPlanApprovalRequests(savedPlanApprovals);
     } else {
       // Clear all state when no conversation
       setInput('');
@@ -237,6 +269,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       setIsLoading(false);
       setStreamingContent('');
       setPermissionRequests([]);
+      setPlanApprovalRequests([]);
     }
   }, [conversation?.id]);
 
@@ -754,6 +787,40 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
   };
 
+  const handleApprovePlan = async (requestId: string) => {
+    try {
+      await window.electron.respondToPlanApproval({
+        requestId,
+        approved: true,
+        conversationId: conversation?.id,
+      });
+      const newRequests = planApprovalRequests.filter(p => p.id !== requestId);
+      setPlanApprovalRequests(newRequests);
+      if (conversation?.id) {
+        conversationPlanApprovalsRef.current.set(conversation.id, newRequests);
+      }
+    } catch (error) {
+      console.error('Error approving plan:', error);
+    }
+  };
+
+  const handleDenyPlan = async (requestId: string) => {
+    try {
+      await window.electron.respondToPlanApproval({
+        requestId,
+        approved: false,
+        conversationId: conversation?.id,
+      });
+      const newRequests = planApprovalRequests.filter(p => p.id !== requestId);
+      setPlanApprovalRequests(newRequests);
+      if (conversation?.id) {
+        conversationPlanApprovalsRef.current.set(conversation.id, newRequests);
+      }
+    } catch (error) {
+      console.error('Error denying plan:', error);
+    }
+  };
+
   const getModeLabel = (mode: PermissionMode) => {
     switch (mode) {
       case 'default': return 'Ask';
@@ -1047,6 +1114,72 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
               </button>
               <button
                 onClick={() => handleDenyPermission(request.id)}
+                style={{
+                  background: '#f5222d',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✗ Deny
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Plan Approval Requests */}
+        {planApprovalRequests.map(request => (
+          <div key={request.id} style={{
+            background: '#2a2a2a',
+            border: '2px solid #1890ff',
+            borderRadius: '8px',
+            padding: '16px',
+            margin: '10px 0',
+            animation: 'pulse 2s infinite'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span style={{ fontSize: '24px' }}>📋</span>
+              <strong style={{ color: '#1890ff', fontSize: '16px' }}>Plan Approval Required</strong>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ color: '#ddd', marginBottom: '8px' }}>
+                Claude has created a plan and needs your approval to proceed:
+              </div>
+              <div style={{
+                background: '#1a1a1a',
+                border: '1px solid #444',
+                borderRadius: '4px',
+                padding: '12px',
+                color: '#ddd',
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                {request.plan}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => handleApprovePlan(request.id)}
+                style={{
+                  background: '#52c41a',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✓ Approve & Proceed
+              </button>
+              <button
+                onClick={() => handleDenyPlan(request.id)}
                 style={{
                   background: '#f5222d',
                   color: '#fff',

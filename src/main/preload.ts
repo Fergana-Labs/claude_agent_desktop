@@ -35,6 +35,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('permission-request', subscription);
   },
 
+  // Listen for plan approval requests
+  onPlanApprovalRequest: (callback: (request: any) => void) => {
+    const subscription = (_event: any, request: any) => callback(request);
+    ipcRenderer.on('plan-approval-request', subscription);
+    return () => ipcRenderer.removeListener('plan-approval-request', subscription);
+  },
+
   // Listen for message interruptions
   onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => {
     const subscription = (_event: any, data: { conversationId: string }) => callback(data);
@@ -110,6 +117,10 @@ contextBridge.exposeInMainWorld('electron', {
   interruptMessage: (conversationId?: string) => ipcRenderer.invoke('interrupt-message', conversationId),
   approvePermission: (permissionId: string) => ipcRenderer.invoke('approve-permission', permissionId),
   denyPermission: (permissionId: string) => ipcRenderer.invoke('deny-permission', permissionId),
+  respondToPermission: (data: { requestId: string; approved: boolean; conversationId?: string; updatedInput?: Record<string, unknown> }) =>
+    ipcRenderer.invoke('respond-to-permission', data),
+  respondToPlanApproval: (data: { requestId: string; approved: boolean; conversationId?: string }) =>
+    ipcRenderer.invoke('respond-to-plan-approval', data),
   updateConversationTitle: (conversationId: string, title: string) => ipcRenderer.invoke('update-conversation-title', conversationId, title),
   pinConversation: (conversationId: string) => ipcRenderer.invoke('pin-conversation', conversationId),
   unpinConversation: (conversationId: string) => ipcRenderer.invoke('unpin-conversation', conversationId),
@@ -135,6 +146,7 @@ export interface ElectronAPI {
   onMessageThinking: (callback: (data: { thinking: string; conversationId: string }) => void) => () => void;
   onToolExecution: (callback: (data: any) => void) => () => void;
   onPermissionRequest: (callback: (request: any) => void) => () => void;
+  onPlanApprovalRequest: (callback: (request: any) => void) => () => void;
   onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => () => void;
   onProcessingStarted: (callback: (data: { conversationId: string }) => void) => () => void;
   onProcessingComplete: (callback: (data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => void) => () => void;
@@ -158,6 +170,8 @@ export interface ElectronAPI {
   interruptMessage: (conversationId?: string) => Promise<{ success: boolean; error?: string }>;
   approvePermission: (permissionId: string) => Promise<{ success: boolean }>;
   denyPermission: (permissionId: string) => Promise<{ success: boolean }>;
+  respondToPermission: (data: { requestId: string; approved: boolean; conversationId?: string; updatedInput?: Record<string, unknown> }) => Promise<{ success: boolean }>;
+  respondToPlanApproval: (data: { requestId: string; approved: boolean; conversationId?: string }) => Promise<{ success: boolean }>;
   updateConversationTitle: (conversationId: string, title: string) => Promise<{ success: boolean; conversation: any }>;
   pinConversation: (conversationId: string) => Promise<{ success: boolean }>;
   unpinConversation: (conversationId: string) => Promise<{ success: boolean }>;

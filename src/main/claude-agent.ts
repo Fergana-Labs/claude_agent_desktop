@@ -11,20 +11,27 @@ const __dirname = dirname(__filename);
 
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
 
-interface MessageCallbacks {
+export interface MessageCallbacks {
   onToken?: (token: string) => void;
   onThinking?: (thinking: string) => void;
   onToolUse?: (toolName: string, toolInput: any) => void;
   onToolResult?: (toolName: string, result: any) => void;
   onPermissionRequest?: (request: PermissionRequest) => void;
+  onPlanApprovalRequest?: (request: PlanApprovalRequest) => void;
   onInterrupted?: () => void;
 }
 
-interface PermissionRequest {
+export interface PermissionRequest {
   id: string;
   tool: string;
   action: string;
   details: string;
+  timestamp: number;
+}
+
+export interface PlanApprovalRequest {
+  id: string;
+  plan: string;
   timestamp: number;
 }
 
@@ -64,6 +71,10 @@ export class ClaudeAgent extends EventEmitter {
     reject: (error: Error) => void;
     toolName: string;
     toolInput: unknown;
+  }> = new Map();
+  private pendingPlanApprovals: Map<string, {
+    resolve: () => void;
+    reject: (error: Error) => void;
   }> = new Map();
 
   constructor(config: ClaudeAgentConfig) {
@@ -476,6 +487,8 @@ export class ClaudeAgent extends EventEmitter {
       this.currentSessionId = message.session_id;
     }
 
+    console.log('henry we are running handleMessage')
+
     switch (message.type) {
       case 'assistant':
         // Extract text, thinking, and tool_use from assistant message
@@ -580,9 +593,37 @@ export class ClaudeAgent extends EventEmitter {
 
       case 'tool_progress':
         // Notify about tool execution
-        if (callbacks.onToolUse && 'tool' in message) {
+        console.log('henry we are in case tool progress')
+        if ('tool' in message) {
           const toolMsg = message as any;
-          if (toolMsg.tool && toolMsg.status === 'running') {
+
+          // Check if this is ExitPlanMode tool
+          if (toolMsg.tool === 'ExitPlanMode' && toolMsg.status === 'completed') {
+            console.log('[ClaudeAgent] ExitPlanMode detected:', toolMsg);
+
+            // Extract the plan from the tool input
+            const plan = toolMsg.input?.plan || 'No plan provided';
+            const requestId = `plan-${Date.now()}-${Math.random()}`;
+
+            // If we have a plan approval callback, use it
+            if (callbacks.onPlanApprovalRequest) {
+              const request: PlanApprovalRequest = {
+                id: requestId,
+                plan: plan,
+                timestamp: Date.now(),
+              };
+
+              console.log('[ClaudeAgent] Triggering onPlanApprovalRequest:', request);
+              callbacks.onPlanApprovalRequest(request);
+            } else {
+              // No callback registered, auto-approve and switch to default mode
+              console.log('[ClaudeAgent] No onPlanApprovalRequest callback, auto-approving plan');
+              if (this.currentQuery && this.isProcessing) {
+                this.currentQuery.setPermissionMode('default');
+                this.mode = 'default';
+              }
+            }
+          } else if (toolMsg.tool && toolMsg.status === 'running' && callbacks.onToolUse) {
             callbacks.onToolUse(toolMsg.tool, toolMsg.input || {});
           } else if (toolMsg.tool && toolMsg.status === 'completed' && callbacks.onToolResult) {
             callbacks.onToolResult(toolMsg.tool, toolMsg.result);
@@ -744,6 +785,47 @@ export class ClaudeAgent extends EventEmitter {
       };
       console.log('[ClaudeAgent] Resolving permission request as denied');
       pendingRequest.resolve(result);
+    }
+  }
+
+  // Respond to a plan approval request
+  async respondToPlanApproval(
+    requestId: string,
+    approved: boolean
+  ): Promise<void> {
+    console.log('[ClaudeAgent] respondToPlanApproval called:', {
+      requestId,
+      approved,
+    });
+
+    const pendingApproval = this.pendingPlanApprovals.get(requestId);
+
+    if (!pendingApproval) {
+      console.warn('[ClaudeAgent] No pending plan approval found for ID:', requestId);
+      // Still try to set mode if approved
+      if (approved && this.currentQuery && this.isProcessing) {
+        console.log('[ClaudeAgent] Switching from plan mode to default mode');
+        this.currentQuery.setPermissionMode('default');
+        this.mode = 'default';
+      }
+      return;
+    }
+
+    // Remove from pending approvals
+    this.pendingPlanApprovals.delete(requestId);
+
+    if (approved) {
+      // Switch from plan mode to default execution mode
+      if (this.currentQuery && this.isProcessing) {
+        console.log('[ClaudeAgent] Plan approved, switching to default mode');
+        this.currentQuery.setPermissionMode('default');
+        this.mode = 'default';
+      }
+      pendingApproval.resolve();
+    } else {
+      // User denied the plan - stay in plan mode or end conversation
+      console.log('[ClaudeAgent] Plan denied by user');
+      pendingApproval.reject(new Error('Plan denied by user'));
     }
   }
 

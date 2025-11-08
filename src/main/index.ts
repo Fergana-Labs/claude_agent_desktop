@@ -277,6 +277,9 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       onPermissionRequest: (request: any) => {
         mainWindow?.webContents.send('permission-request', { ...request, conversationId });
       },
+      onPlanApprovalRequest: (request: any) => {
+        mainWindow?.webContents.send('plan-approval-request', { ...request, conversationId });
+      },
       onInterrupted: async () => {
         // Save any streamed content before interrupting
         await saveTextChunk();
@@ -601,6 +604,24 @@ ipcMain.handle('respond-to-permission', async (event, data: { requestId: string;
   }
 
   agentManager.respondToPermissionRequest(targetConversationId, requestId, approved, updatedInput);
+  return { success: true };
+});
+
+// Respond to plan approval request (approve or deny)
+ipcMain.handle('respond-to-plan-approval', async (event, data: { requestId: string; approved: boolean; conversationId?: string }) => {
+  if (!agentManager || !conversationManager) {
+    throw new Error('Services not initialized');
+  }
+
+  const { requestId, approved, conversationId } = data;
+
+  // If no conversationId provided, use the current active conversation
+  const targetConversationId = conversationId || conversationManager.getCurrentConversationId();
+  if (!targetConversationId) {
+    throw new Error('No active conversation');
+  }
+
+  agentManager.respondToPlanApproval(targetConversationId, requestId, approved);
   return { success: true };
 });
 

@@ -43,6 +43,12 @@ export interface PermissionRequest {
   timestamp: number;
 }
 
+export interface PlanApprovalRequest {
+  id: string;
+  plan: string;
+  timestamp: number;
+}
+
 export interface SearchMatch {
   messageId: number;
   snippet: string;
