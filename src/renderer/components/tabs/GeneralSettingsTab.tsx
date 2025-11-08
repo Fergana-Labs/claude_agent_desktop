@@ -118,9 +118,9 @@ const GeneralSettingsTab: React.FC = () => {
             onChange={(e) => handleModelChange(e.target.value as ModelType)}
             className="settings-select"
           >
-            <option value="sonnet">Claude 3.5 Sonnet</option>
-            <option value="opus">Claude 3 Opus</option>
-            <option value="haiku">Claude 3 Haiku</option>
+            <option value="sonnet">Claude Sonnet 4.5</option>
+            <option value="opus">Claude Opus 4.1</option>
+            <option value="haiku">Claude Haiku 4.5</option>
           </select>
         </div>
       </div>

@@ -155,11 +155,11 @@ export class ClaudeAgent extends EventEmitter {
 
         // Map model setting to SDK model ID
         const modelMap: Record<string, string> = {
-          'sonnet': 'claude-sonnet-4-5-20250929',
-          'opus': 'claude-opus-4-20250514',
-          'haiku': 'claude-3-5-haiku-20241022',
+          'sonnet': 'claude-sonnet-4-5',
+          'opus': 'claude-opus-4-1',
+          'haiku': 'claude-haiku-4-5',
         };
-        const modelId = this.config.model ? modelMap[this.config.model] || 'claude-sonnet-4-5-20250929' : 'claude-sonnet-4-5-20250929';
+        const modelId = this.config.model ? modelMap[this.config.model] || 'claude-sonnet-4-5' : 'claude-sonnet-4-5';
 
         const options: Options = {
           model: modelId,

@@ -199,7 +199,7 @@ Each Office tool is implemented as:
 ### Claude Agent Settings
 
 The Agent SDK is configured in `src/main/claude-agent.ts`:
-- Model: `claude-sonnet-4-5-20250929`
+- Model: `claude-sonnet-4-5` (default), `claude-opus-4-1`, `claude-haiku-4-5`
 - Allowed tools: `Skill`, `Read`, `Write`, `Bash`
 - Skills path: User data directory + `.claude/skills`
 - Streaming input mode: Enabled via async generator pattern
