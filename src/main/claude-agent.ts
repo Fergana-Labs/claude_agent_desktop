@@ -771,6 +771,10 @@ export class ClaudeAgent extends EventEmitter {
     return this.currentSessionId;
   }
 
+  getIsProcessing(): boolean {
+    return this.isProcessing;
+  }
+
   // Get current queue length (useful for debugging and UI feedback)
   getQueueLength(): number {
     return this.messageQueue.length;

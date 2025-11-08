@@ -184,6 +184,27 @@ export class ConversationAgentManager extends EventEmitter {
   }
 
   /**
+   * Check if a conversation is currently processing
+   */
+  isConversationProcessing(conversationId: string): boolean {
+    const agent = this.agents.get(conversationId);
+    return agent ? agent.getIsProcessing() : false;
+  }
+
+  /**
+   * Get all conversation IDs that are currently processing
+   */
+  getActiveConversations(): string[] {
+    const activeConversations: string[] = [];
+    for (const [conversationId, agent] of this.agents.entries()) {
+      if (agent.getIsProcessing()) {
+        activeConversations.push(conversationId);
+      }
+    }
+    return activeConversations;
+  }
+
+  /**
    * Cleanup all agents (called on shutdown)
    */
   async cleanup(): Promise<void> {

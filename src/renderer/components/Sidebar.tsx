@@ -6,6 +6,7 @@ interface SidebarProps {
   conversations: Conversation[];
   currentConversationId?: string;
   conversationsWithActivity: Set<string>;
+  activeConversations: Set<string>;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: string) => void;
@@ -29,6 +30,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   conversations,
   currentConversationId,
   conversationsWithActivity,
+  activeConversations,
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
@@ -419,6 +421,20 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                       <>
                         <span className="pin-icon">📌</span>
                         {conv.title}
+                        {activeConversations.has(conv.id) && (
+                          <span style={{
+                            marginLeft: '8px',
+                            background: '#ff9800',
+                            color: '#fff',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            animation: 'pulse 2s infinite'
+                          }}>
+                            In Progress
+                          </span>
+                        )}
                         {conversationsWithActivity.has(conv.id) && (
                           <span style={{
                             marginLeft: '8px',
@@ -489,6 +505,20 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 ) : (
                   <>
                     {conv.title}
+                    {activeConversations.has(conv.id) && (
+                      <span style={{
+                        marginLeft: '8px',
+                        background: '#ff9800',
+                        color: '#fff',
+                        padding: '2px 6px',
+                        borderRadius: '10px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        animation: 'pulse 2s infinite'
+                      }}>
+                        In Progress
+                      </span>
+                    )}
                     {conversationsWithActivity.has(conv.id) && (
                       <span style={{
                         marginLeft: '8px',

@@ -13,6 +13,7 @@ function App() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [conversationsWithActivity, setConversationsWithActivity] = useState<Set<string>>(new Set());
+  const [activeConversations, setActiveConversations] = useState<Set<string>>(new Set());
   const [showFindBar, setShowFindBar] = useState(false);
   const sidebarRef = useRef<{ handleDeleteFocused: () => void; clearFocus: () => void; focusSearch: () => void } | null>(null);
 
@@ -24,6 +25,51 @@ function App() {
     } else {
       console.error('Electron API not available');
     }
+  }, []);
+
+  // Track active conversations (those currently processing)
+  useEffect(() => {
+    if (!window.electron) return;
+
+    // Listen for processing started
+    const removeProcessingStartedListener = window.electron.onProcessingStarted((data) => {
+      setActiveConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.add(data.conversationId);
+        return newSet;
+      });
+    });
+
+    // Listen for processing complete
+    const removeProcessingCompleteListener = window.electron.onProcessingComplete((data) => {
+      setActiveConversations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.conversationId);
+        return newSet;
+      });
+    });
+
+    // Poll for active conversations periodically to sync state
+    const pollActiveConversations = async () => {
+      try {
+        const active = await window.electron.getActiveConversations();
+        setActiveConversations(new Set(active));
+      } catch (error) {
+        console.error('Error polling active conversations:', error);
+      }
+    };
+
+    // Initial poll
+    pollActiveConversations();
+
+    // Poll every 2 seconds
+    const pollInterval = setInterval(pollActiveConversations, 2000);
+
+    return () => {
+      removeProcessingStartedListener();
+      removeProcessingCompleteListener();
+      clearInterval(pollInterval);
+    };
   }, []);
 
   // Global keyboard shortcuts
@@ -316,6 +362,7 @@ function App() {
         conversations={conversations}
         currentConversationId={showMcpSettings ? undefined : currentConversation?.id}
         conversationsWithActivity={conversationsWithActivity}
+        activeConversations={activeConversations}
         onSelectConversation={(id) => {
           setShowMcpSettings(false);
           loadConversation(id);
