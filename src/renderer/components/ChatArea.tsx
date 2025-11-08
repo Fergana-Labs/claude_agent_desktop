@@ -110,11 +110,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           requireInteraction: true,
           silent: true,
         });
-
-        // Play sound
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi1+z/LTgjMGHm7A7+OZSA0PVqnm77BdGAU+lt3ywHMnBSl6zPDijz8KFF+47OelUxIKQ5zi8r1nIgU='
-);
-        audio.play().catch(() => {});
+        // Audio playback removed - sound is played via shell.beep in App.tsx
       }
     });
 

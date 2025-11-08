@@ -269,8 +269,11 @@ function App() {
         if (currentConversation && conv.id !== currentConversation.id) {
           const oldConv = conversations.find(c => c.id === conv.id);
           // If updatedAt changed, mark as having activity
+          // BUT only if it's not currently processing (to avoid badge flipping)
           if (oldConv && conv.updatedAt > oldConv.updatedAt) {
-            newActivity.add(conv.id);
+            if (!activeConversations.has(conv.id)) {
+              newActivity.add(conv.id);
+            }
           }
         }
       });
