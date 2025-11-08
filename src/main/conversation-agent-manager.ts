@@ -95,6 +95,19 @@ export class ConversationAgentManager extends EventEmitter {
       this.emit('clear-permissions', { conversationId });
     });
 
+    // Listen for mode changes and persist to database
+    agent.on('mode-changed', async (data: { mode: PermissionMode }) => {
+      console.log('[AgentManager] Mode changed for conversation:', conversationId, 'to', data.mode);
+      try {
+        await this.conversationManager.updateMode(conversationId, data.mode);
+        console.log('[AgentManager] Mode persisted to database');
+        // Emit event so the renderer can update the UI
+        this.emit('mode-changed', { conversationId, mode: data.mode });
+      } catch (error) {
+        console.error('[AgentManager] Failed to persist mode change:', error);
+      }
+    });
+
     // Store agent in map
     this.agents.set(conversationId, agent);
 

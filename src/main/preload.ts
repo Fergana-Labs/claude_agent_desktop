@@ -91,6 +91,13 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('clear-permissions', subscription);
   },
 
+  // Listen for mode changed event (when mode changes from plan to default, etc.)
+  onModeChanged: (callback: (data: { conversationId: string; mode: string }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string; mode: string }) => callback(data);
+    ipcRenderer.on('mode-changed', subscription);
+    return () => ipcRenderer.removeListener('mode-changed', subscription);
+  },
+
   // Conversation management
   getConversations: () => ipcRenderer.invoke('get-conversations'),
 
@@ -169,6 +176,7 @@ export interface ElectronAPI {
   onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onPermissionResponded: (callback: (data: { conversationId: string }) => void) => () => void;
   onClearPermissions: (callback: (data: { conversationId: string }) => void) => () => void;
+  onModeChanged: (callback: (data: { conversationId: string; mode: string }) => void) => () => void;
   getConversations: () => Promise<any[]>;
   searchConversations: (query: string, caseSensitive: boolean) => Promise<any[]>;
   getActiveConversations: () => Promise<string[]>;

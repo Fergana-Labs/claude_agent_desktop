@@ -214,6 +214,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       }
     });
 
+    // Set up mode change listener
+    const removeModeChangedListener = window.electron.onModeChanged((data: { conversationId: string; mode: string }) => {
+      // Only update mode if this is the currently viewed conversation
+      if (conversation?.id === data.conversationId) {
+        console.log('[ChatArea] Mode changed to:', data.mode);
+        setMode(data.mode as PermissionMode);
+      }
+    });
+
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -229,6 +238,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       removeAssistantMessageSavedListener();
       removeProcessingStartedListener();
       removeProcessingCompleteListener();
+      removeModeChangedListener();
     };
   }, [conversation]);
 

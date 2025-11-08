@@ -130,6 +130,12 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('clear-permissions', data);
   });
 
+  // Forward mode change events to renderer
+  agentManager.on('mode-changed', (data: any) => {
+    console.log('[Main] Mode changed:', data);
+    mainWindow?.webContents.send('mode-changed', data);
+  });
+
   createWindow();
 
   app.on('activate', () => {

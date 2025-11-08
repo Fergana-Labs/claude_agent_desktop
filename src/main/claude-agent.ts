@@ -312,6 +312,83 @@ export class ClaudeAgent extends EventEmitter {
         : 'not an object',
     });
 
+    // Get callbacks for current message being processed
+    const callbacks = this.callbackQueue[this.currentCallbackIndex] || {};
+
+    // Check if this is ExitPlanMode tool - handle specially
+    if (hookInput.tool_name === 'ExitPlanMode') {
+      console.log('[ClaudeAgent] ExitPlanMode detected in PreToolUse hook');
+
+      // Extract the plan from the tool input
+      const toolInput = hookInput.tool_input as any;
+      const plan = toolInput?.plan || 'No plan provided';
+      const requestId = toolUseID || `plan-${Date.now()}-${Math.random()}`;
+
+      // If we have a plan approval callback, use it
+      if (callbacks.onPlanApprovalRequest) {
+        return new Promise<HookJSONOutput>((resolve, reject) => {
+          // Store a pending approval so we can handle the response later
+          this.pendingPlanApprovals.set(requestId, {
+            resolve: () => {
+              console.log('[ClaudeAgent] Plan approval resolved - switching to acceptEdits mode');
+              // When plan is approved, allow the tool AND switch to acceptEdits mode
+              // This allows Claude to execute file edits without asking for each one
+              this.mode = 'acceptEdits';
+              this.emit('mode-changed', { mode: 'acceptEdits' });
+
+              resolve({
+                continue: true,
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse',
+                  permissionDecision: 'allow',
+                }
+              });
+            },
+            reject: (error: Error) => {
+              console.log('[ClaudeAgent] Plan approval rejected:', error);
+              // If plan is rejected, deny the tool
+              resolve({
+                continue: true,
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse',
+                  permissionDecision: 'deny',
+                  permissionDecisionReason: 'User rejected the plan',
+                }
+              });
+            }
+          });
+
+          const request: PlanApprovalRequest = {
+            id: requestId,
+            plan: plan,
+            timestamp: Date.now(),
+          };
+
+          console.log('[ClaudeAgent] Triggering onPlanApprovalRequest from PreToolUse:', request);
+          callbacks.onPlanApprovalRequest!(request);
+
+          // Handle abort signal
+          options.signal.addEventListener('abort', () => {
+            this.pendingPlanApprovals.delete(requestId);
+            reject(new Error('Plan approval request aborted'));
+          });
+        });
+      } else {
+        // No callback registered, auto-approve and switch to acceptEdits mode
+        console.log('[ClaudeAgent] No onPlanApprovalRequest callback, auto-approving plan');
+        this.mode = 'acceptEdits';
+        this.emit('mode-changed', { mode: 'acceptEdits' });
+
+        return {
+          continue: true,
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            permissionDecision: 'allow',
+          }
+        };
+      }
+    }
+
     // If in bypass mode, auto-allow everything
     console.log('henry we r in mode', this.mode)
     if (this.mode === 'bypassPermissions') {
@@ -324,9 +401,6 @@ export class ClaudeAgent extends EventEmitter {
         }
       };
     }
-
-    // Get callbacks for current message being processed
-    const callbacks = this.callbackQueue[this.currentCallbackIndex] || {};
 
     // If no callback registered, auto-allow
     if (!callbacks.onPermissionRequest) {
@@ -493,6 +567,8 @@ export class ClaudeAgent extends EventEmitter {
       hasOnToken: !!callbacks.onToken,
       hasOnThinking: !!callbacks.onThinking,
       hasOnToolUse: !!callbacks.onToolUse,
+      messageKeys: Object.keys(message),
+      fullMessage: JSON.stringify(message).substring(0, 200),
     });
 
     // Extract and store session ID for conversation continuity
@@ -509,7 +585,7 @@ export class ClaudeAgent extends EventEmitter {
         if (message.message && 'content' in message.message) {
           const content = message.message.content;
           if (Array.isArray(content)) {
-            console.log('[ClaudeAgent] Content blocks:', content.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking })));
+            console.log('[ClaudeAgent] Content blocks:', content.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking, name: b.name })));
             content.forEach((block: any) => {
               if (block.type === 'text' && block.text && callbacks.onToken) {
                 const fullText = block.text;
@@ -610,33 +686,7 @@ export class ClaudeAgent extends EventEmitter {
         if ('tool' in message) {
           const toolMsg = message as any;
 
-          // Check if this is ExitPlanMode tool
-          if (toolMsg.tool === 'ExitPlanMode' && toolMsg.status === 'completed') {
-            console.log('[ClaudeAgent] ExitPlanMode detected:', toolMsg);
-
-            // Extract the plan from the tool input
-            const plan = toolMsg.input?.plan || 'No plan provided';
-            const requestId = `plan-${Date.now()}-${Math.random()}`;
-
-            // If we have a plan approval callback, use it
-            if (callbacks.onPlanApprovalRequest) {
-              const request: PlanApprovalRequest = {
-                id: requestId,
-                plan: plan,
-                timestamp: Date.now(),
-              };
-
-              console.log('[ClaudeAgent] Triggering onPlanApprovalRequest:', request);
-              callbacks.onPlanApprovalRequest(request);
-            } else {
-              // No callback registered, auto-approve and switch to default mode
-              console.log('[ClaudeAgent] No onPlanApprovalRequest callback, auto-approving plan');
-              if (this.currentQuery && this.isProcessing) {
-                this.currentQuery.setPermissionMode('default');
-                this.mode = 'default';
-              }
-            }
-          } else if (toolMsg.tool && toolMsg.status === 'running' && callbacks.onToolUse) {
+          if (toolMsg.tool && toolMsg.status === 'running' && callbacks.onToolUse) {
             callbacks.onToolUse(toolMsg.tool, toolMsg.input || {});
           } else if (toolMsg.tool && toolMsg.status === 'completed' && callbacks.onToolResult) {
             callbacks.onToolResult(toolMsg.tool, toolMsg.result);
@@ -843,6 +893,8 @@ export class ClaudeAgent extends EventEmitter {
         console.log('[ClaudeAgent] Switching from plan mode to default mode');
         this.currentQuery.setPermissionMode('default');
         this.mode = 'default';
+        // Emit event for mode change so it can be persisted
+        this.emit('mode-changed', { mode: 'default' });
       }
       return;
     }
@@ -856,6 +908,8 @@ export class ClaudeAgent extends EventEmitter {
         console.log('[ClaudeAgent] Plan approved, switching to default mode');
         this.currentQuery.setPermissionMode('default');
         this.mode = 'default';
+        // Emit event for mode change so it can be persisted
+        this.emit('mode-changed', { mode: 'default' });
       }
       pendingApproval.resolve();
     } else {
