@@ -173,6 +173,11 @@
   transition: background-color 0.2s;
 }
 
+.new-conversation-btn .keyboard-hint {
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 1;
+}
+
 .new-conversation-btn:hover {
   background-color: #1177bb;
 }

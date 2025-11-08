@@ -22,7 +22,6 @@
   gap: 4px;
   max-width: 100%;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .message.user {
@@ -317,7 +316,6 @@ textarea:disabled {
   align-self: flex-start;
   margin: 0;
   padding: 16px 24px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .tool-header {
