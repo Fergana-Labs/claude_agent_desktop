@@ -262,22 +262,12 @@ function App() {
     try {
       const convos = await window.electron.getConversations();
 
-      // Detect conversations that have updated while viewing a different one
-      const newActivity = new Set(conversationsWithActivity);
-      convos.forEach(conv => {
-        // If this conversation updated and it's not the current one
-        if (currentConversation && conv.id !== currentConversation.id) {
-          const oldConv = conversations.find(c => c.id === conv.id);
-          // If updatedAt changed, mark as having activity
-          // BUT only if it's not currently processing (to avoid badge flipping)
-          if (oldConv && conv.updatedAt > oldConv.updatedAt) {
-            if (!activeConversations.has(conv.id)) {
-              newActivity.add(conv.id);
-            }
-          }
-        }
-      });
-      setConversationsWithActivity(newActivity);
+      // conversationsWithActivity is now managed solely by events:
+      // - onProcessingComplete: adds when processing finishes (for non-current conversations)
+      // - onPermissionRequest: adds when permission needed (for non-current conversations)
+      // - onPermissionResponded: removes when user responds to permission
+      // - loadConversation: removes when user clicks on conversation
+      // No timestamp-based detection needed - events provide accurate state
 
       setConversations(convos);
 
