@@ -137,6 +137,14 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Notifications
   playNotificationSound: () => ipcRenderer.invoke('play-notification-sound'),
+
+  // App Settings
+  updateAppSettings: (settings: {
+    model?: string;
+    additionalDirectories?: string[];
+    systemPromptMode?: 'append' | 'custom';
+    customSystemPrompt?: string;
+  }) => ipcRenderer.invoke('update-app-settings', settings),
 });
 
 // Type definitions for TypeScript

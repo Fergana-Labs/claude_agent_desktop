@@ -355,9 +355,43 @@ ipcMain.handle('get-active-conversations', async () => {
 });
 
 ipcMain.handle('play-notification-sound', async () => {
-  // TODO: Check user settings when settings page is implemented
-  // For now, always play the sound
   shell.beep();
+  return { success: true };
+});
+
+// Settings management
+ipcMain.handle('update-app-settings', async (event, settings: {
+  model?: string;
+  additionalDirectories?: string[];
+  systemPromptMode?: 'append' | 'custom';
+  customSystemPrompt?: string;
+}) => {
+  if (!agentManager) {
+    throw new Error('Agent manager not initialized');
+  }
+
+  // Build system prompt based on mode
+  let systemPrompt: string | { type: 'preset'; preset: 'claude_code'; append: string } | undefined;
+  if (settings.customSystemPrompt) {
+    if (settings.systemPromptMode === 'append') {
+      systemPrompt = {
+        type: 'preset',
+        preset: 'claude_code',
+        append: settings.customSystemPrompt
+      };
+    } else if (settings.systemPromptMode === 'custom') {
+      systemPrompt = settings.customSystemPrompt;
+    }
+  }
+
+  // Update agent manager with new settings
+  agentManager.updateSettings({
+    model: settings.model,
+    additionalDirectories: settings.additionalDirectories,
+    systemPrompt: systemPrompt,
+  });
+
+  console.log('[Main] App settings updated');
   return { success: true };
 });
 

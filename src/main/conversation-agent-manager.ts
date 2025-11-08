@@ -17,6 +17,9 @@ interface AgentConfig {
   apiKey: string;
   pluginsPath: string;
   mcpServers?: Record<string, McpServerConfig>;
+  model?: string;
+  additionalDirectories?: string[];
+  systemPrompt?: string | { type: 'preset'; preset: 'claude_code'; append: string };
 }
 
 /**
@@ -71,6 +74,9 @@ export class ConversationAgentManager extends EventEmitter {
       parentSessionId: conversation.parentSessionId || null,
       mode: conversation.mode || 'default',
       mcpServers: this.config.mcpServers,
+      model: this.config.model,
+      additionalDirectories: this.config.additionalDirectories,
+      systemPrompt: this.config.systemPrompt,
     });
 
     // Forward agent events with conversationId
@@ -215,6 +221,26 @@ export class ConversationAgentManager extends EventEmitter {
       }
     }
     return activeConversations;
+  }
+
+  /**
+   * Update application settings (model, system prompt, etc.)
+   */
+  updateSettings(settings: {
+    model?: string;
+    additionalDirectories?: string[];
+    systemPrompt?: string | { type: 'preset'; preset: 'claude_code'; append: string };
+  }): void {
+    console.log('[AgentManager] Updating settings:', settings);
+    if (settings.model !== undefined) {
+      this.config.model = settings.model;
+    }
+    if (settings.additionalDirectories !== undefined) {
+      this.config.additionalDirectories = settings.additionalDirectories;
+    }
+    if (settings.systemPrompt !== undefined) {
+      this.config.systemPrompt = settings.systemPrompt;
+    }
   }
 
   /**

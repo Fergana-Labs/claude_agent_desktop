@@ -1,0 +1,191 @@
+.general-settings-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-description {
+  margin: 0;
+  color: #888;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item > label {
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-select {
+  background: #1e1e1e;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  max-width: 300px;
+}
+
+.settings-select:hover {
+  border-color: #666;
+}
+
+.settings-select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.checkbox-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.checkbox-item input[type="checkbox"] {
+  margin-top: 2px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: #4a9eff;
+}
+
+.checkbox-item span {
+  flex: 1;
+  font-size: 14px;
+}
+
+.setting-help {
+  margin: 4px 0 0 26px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.directories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.no-directories {
+  color: #666;
+  font-size: 13px;
+  font-style: italic;
+  padding: 12px;
+  background: #1e1e1e;
+  border: 1px dashed #444;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.directory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+}
+
+.directory-path {
+  flex: 1;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.remove-directory-btn {
+  background: #444;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.remove-directory-btn:hover {
+  background: #f5222d;
+}
+
+.add-directory-btn {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+  align-self: flex-start;
+}
+
+.add-directory-btn:hover {
+  background: #0052a3;
+}
+
+.theme-selector {
+  display: flex;
+  gap: 12px;
+}
+
+.theme-btn {
+  flex: 1;
+  max-width: 150px;
+  padding: 10px 20px;
+  background: #1e1e1e;
+  color: #aaa;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.theme-btn:hover {
+  border-color: #666;
+  color: #fff;
+}
+
+.theme-btn.active {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+}

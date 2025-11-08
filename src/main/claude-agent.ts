@@ -43,6 +43,9 @@ interface ClaudeAgentConfig {
   parentSessionId?: string | null;
   mode?: PermissionMode;
   mcpServers?: Record<string, McpServerConfig>;
+  model?: string;
+  additionalDirectories?: string[];
+  systemPrompt?: string | { type: 'preset'; preset: 'claude_code'; append: string };
 }
 
 interface QueuedMessage {
@@ -150,11 +153,20 @@ export class ClaudeAgent extends EventEmitter {
         // Check if this is the first message of a forked conversation
         const isFork = this.config.parentSessionId && !this.currentSessionId;
 
+        // Map model setting to SDK model ID
+        const modelMap: Record<string, string> = {
+          'sonnet': 'claude-sonnet-4-5-20250929',
+          'opus': 'claude-opus-4-20250514',
+          'haiku': 'claude-3-5-haiku-20241022',
+        };
+        const modelId = this.config.model ? modelMap[this.config.model] || 'claude-sonnet-4-5-20250929' : 'claude-sonnet-4-5-20250929';
+
         const options: Options = {
-          model: 'claude-sonnet-4-5-20250929',
+          model: modelId,
           maxThinkingTokens: 10000,
           includePartialMessages: true,  // Enable real-time streaming
           cwd: projectPath,
+          additionalDirectories: this.config.additionalDirectories || [],
           settingSources: [],
           permissionMode: this.mode,  // Pass permission mode in options
           // Allow all tools by not specifying allowedTools
@@ -164,6 +176,7 @@ export class ClaudeAgent extends EventEmitter {
           mcpServers: this.config.mcpServers,
           resume: isFork ? (this.config.parentSessionId || undefined) : (this.currentSessionId || undefined),
           forkSession: isFork || undefined,
+          systemPrompt: this.config.systemPrompt,
           env: {
             PATH: process.env.PATH,
             ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

@@ -563,7 +563,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       {onShowSettings && !isCollapsed && (
         <div className="sidebar-footer">
           <button className="settings-btn" onClick={onShowSettings}>
-            ⚙️ MCP Settings
+            ⚙️ Settings
           </button>
         </div>
       )}

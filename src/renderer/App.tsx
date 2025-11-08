@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import FolderSelectionModal from './components/FolderSelectionModal';
-import McpSettings from './components/McpSettings';
+import SettingsModal from './components/SettingsModal';
 import { Conversation, PermissionMode } from './types';
 import './App.css';
 
@@ -11,7 +11,7 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isElectronReady, setIsElectronReady] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [showMcpSettings, setShowMcpSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [conversationsWithActivity, setConversationsWithActivity] = useState<Set<string>>(new Set());
   const [activeConversations, setActiveConversations] = useState<Set<string>>(new Set());
   const [showFindBar, setShowFindBar] = useState(false);
@@ -24,6 +24,26 @@ function App() {
     if (window.electron) {
       setIsElectronReady(true);
       loadConversations();
+
+      // Initialize app settings from localStorage
+      const savedModel = localStorage.getItem('selectedModel');
+      const savedDirs = localStorage.getItem('additionalDirectories');
+      const savedPromptMode = localStorage.getItem('systemPromptMode');
+      const savedPrompt = localStorage.getItem('customSystemPrompt');
+
+      try {
+        const additionalDirectories = savedDirs ? JSON.parse(savedDirs) : [];
+        window.electron.updateAppSettings({
+          model: savedModel || 'sonnet',
+          additionalDirectories,
+          systemPromptMode: (savedPromptMode as 'append' | 'custom') || 'append',
+          customSystemPrompt: savedPrompt || '',
+        }).catch(err => {
+          console.error('Failed to initialize app settings:', err);
+        });
+      } catch (err) {
+        console.error('Failed to parse settings:', err);
+      }
     } else {
       console.error('Electron API not available');
     }
@@ -52,10 +72,13 @@ function App() {
         return newSet;
       });
 
-      // Play beep for all processing completions
-      window.electron.playNotificationSound().catch(error => {
-        console.error('Error playing notification sound:', error);
-      });
+      // Play beep for all processing completions if enabled
+      const audioEnabled = localStorage.getItem('audioNotificationsEnabled');
+      if (audioEnabled !== 'false') {
+        window.electron.playNotificationSound().catch(error => {
+          console.error('Error playing notification sound:', error);
+        });
+      }
 
       // If processing completed for a conversation that's not current, mark it as needing attention
       if (currentConversation?.id !== data.conversationId) {
@@ -69,10 +92,13 @@ function App() {
 
     // Listen for permission requests - mark conversation as needing attention
     const removePermissionListener = window.electron.onPermissionRequest((request: any) => {
-      // Play beep for all permission requests
-      window.electron.playNotificationSound().catch(error => {
-        console.error('Error playing notification sound:', error);
-      });
+      // Play beep for all permission requests if enabled
+      const audioEnabled = localStorage.getItem('audioNotificationsEnabled');
+      if (audioEnabled !== 'false') {
+        window.electron.playNotificationSound().catch(error => {
+          console.error('Error playing notification sound:', error);
+        });
+      }
 
       // If permission request is for a different conversation, mark it as needing attention
       if (currentConversation?.id !== request.conversationId) {
@@ -405,31 +431,30 @@ function App() {
       <Sidebar
         ref={sidebarRef}
         conversations={conversations}
-        currentConversationId={showMcpSettings ? undefined : currentConversation?.id}
+        currentConversationId={showSettings ? undefined : currentConversation?.id}
         conversationsWithActivity={conversationsWithActivity}
         activeConversations={activeConversations}
         onSelectConversation={(id) => {
-          setShowMcpSettings(false);
+          setShowSettings(false);
           loadConversation(id);
         }}
         onNewConversation={handleNewConversation}
         onDeleteConversation={handleDeleteConversation}
         onForkConversation={handleForkConversation}
-        onShowSettings={() => setShowMcpSettings(true)}
+        onShowSettings={() => setShowSettings(true)}
         onTitleUpdated={loadConversations}
       />
-      {showMcpSettings ? (
-        <McpSettings />
-      ) : (
-        <ChatArea
-          conversation={currentConversation}
-          onMessageSent={loadConversations}
-          onLoadMoreMessages={handleLoadMoreMessages}
-          onChatAreaFocus={() => sidebarRef.current?.clearFocus()}
-          showFindBar={showFindBar}
-          onCloseFindBar={() => setShowFindBar(false)}
-          onConversationTitleUpdated={loadConversations}
-        />
+      <ChatArea
+        conversation={currentConversation}
+        onMessageSent={loadConversations}
+        onLoadMoreMessages={handleLoadMoreMessages}
+        onChatAreaFocus={() => sidebarRef.current?.clearFocus()}
+        showFindBar={showFindBar}
+        onCloseFindBar={() => setShowFindBar(false)}
+        onConversationTitleUpdated={loadConversations}
+      />
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
