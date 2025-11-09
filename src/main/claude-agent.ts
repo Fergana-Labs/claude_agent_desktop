@@ -19,6 +19,7 @@ export interface MessageCallbacks {
   onPermissionRequest?: (request: PermissionRequest) => void;
   onPlanApprovalRequest?: (request: PlanApprovalRequest) => void;
   onInterrupted?: () => void;
+  onResult?: () => void;
 }
 
 export interface PermissionRequest {
@@ -701,6 +702,14 @@ export class ClaudeAgent extends EventEmitter {
           to: this.currentCallbackIndex + 1,
           queueLength: this.callbackQueue.length,
         });
+        // Notify consumer that this reply has completed so they can flush any buffered chunks
+        if (callbacks.onResult) {
+          try {
+            callbacks.onResult();
+          } catch (err) {
+            console.warn('[ClaudeAgent] onResult callback threw:', err);
+          }
+        }
         // Clean up accumulated text for this callback to prevent memory leaks
         // Delete all entries for this callback index (including all content_index variants)
         const keysToDelete: string[] = [];

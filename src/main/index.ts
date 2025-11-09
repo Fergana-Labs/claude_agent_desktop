@@ -222,6 +222,10 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         currentTextChunk = accumulatedText;
         mainWindow?.webContents.send('message-token', { token: accumulatedText, conversationId, startedAt: replyStartedAt });
       },
+      onResult: async () => {
+        // Flush any remaining streamed text at the end of this reply
+        await saveTextChunk();
+      },
       onThinking: async (thinking: string) => {
         // Save accumulated text before thinking
         await saveTextChunk();

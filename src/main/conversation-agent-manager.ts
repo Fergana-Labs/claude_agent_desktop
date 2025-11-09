@@ -11,6 +11,7 @@ interface MessageCallbacks {
   onPermissionRequest?: (request: any) => void;
   onPlanApprovalRequest?: (request: PlanApprovalRequest) => void;
   onInterrupted?: () => void;
+  onResult?: () => void;
 }
 
 interface AgentConfig {
