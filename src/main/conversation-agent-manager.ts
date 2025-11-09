@@ -82,7 +82,8 @@ export class ConversationAgentManager extends EventEmitter {
     // Forward agent events with conversationId
     agent.on('processing-started', () => {
       console.log('[AgentManager] Processing started for conversation:', conversationId);
-      this.emit('processing-started', { conversationId });
+      // Include a start timestamp so the renderer can place the streaming block chronologically
+      this.emit('processing-started', { conversationId, startedAt: Date.now() });
     });
 
     agent.on('processing-complete', (data: any) => {

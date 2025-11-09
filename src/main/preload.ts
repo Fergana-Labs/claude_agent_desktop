@@ -50,8 +50,8 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // Listen for processing started event
-  onProcessingStarted: (callback: (data: { conversationId: string }) => void) => {
-    const subscription = (_event: any, data: { conversationId: string }) => callback(data);
+  onProcessingStarted: (callback: (data: { conversationId: string; startedAt?: number }) => void) => {
+    const subscription = (_event: any, data: { conversationId: string; startedAt?: number }) => callback(data);
     ipcRenderer.on('processing-started', subscription);
     return () => ipcRenderer.removeListener('processing-started', subscription);
   },
@@ -170,7 +170,7 @@ export interface ElectronAPI {
   onPermissionRequest: (callback: (request: any) => void) => () => void;
   onPlanApprovalRequest: (callback: (request: any) => void) => () => void;
   onMessageInterrupted: (callback: (data: { conversationId: string }) => void) => () => void;
-  onProcessingStarted: (callback: (data: { conversationId: string }) => void) => () => void;
+  onProcessingStarted: (callback: (data: { conversationId: string; startedAt?: number }) => void) => () => void;
   onProcessingComplete: (callback: (data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => void) => () => void;
   onUserMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;
   onAssistantMessageSaved: (callback: (data: { conversationId: string }) => void) => () => void;

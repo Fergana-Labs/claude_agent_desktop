@@ -57,6 +57,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const conversationStreamingRef = useRef<Map<string, string>>(new Map());
   const conversationPermissionsRef = useRef<Map<string, PermissionRequest[]>>(new Map());
   const conversationPlanApprovalsRef = useRef<Map<string, PlanApprovalRequest[]>>(new Map());
+  const conversationStreamingStartRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     // Set up streaming token listener with throttling to reduce "twitchy" behavior
@@ -177,7 +178,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     });
 
     // Set up processing started listener
-    const removeProcessingStartedListener = window.electron.onProcessingStarted((data: { conversationId: string }) => {
+    const removeProcessingStartedListener = window.electron.onProcessingStarted((data: { conversationId: string; startedAt?: number }) => {
       // Set loading state for the conversation that started processing
       conversationLoadingRef.current.set(data.conversationId, true);
       
@@ -186,6 +187,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         conversationStreamingRef.current.set(data.conversationId, '');
         setStreamingContent('');
       }
+
+      // Record the start timestamp for inline placement
+      conversationStreamingStartRef.current.set(data.conversationId, data.startedAt ?? Date.now());
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
@@ -197,6 +201,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     const removeProcessingCompleteListener = window.electron.onProcessingComplete((data: { conversationId: string; interrupted: boolean; remainingMessages: number }) => {
       // Clear loading state for the conversation that completed processing
       conversationLoadingRef.current.set(data.conversationId, false);
+      // Clear streaming start anchor for this conversation
+      conversationStreamingStartRef.current.delete(data.conversationId);
 
       // Only update UI if this is the currently viewed conversation
       if (conversation?.id === data.conversationId) {
@@ -1007,67 +1013,105 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           </div>
         )}
 
-        {conversation?.messages.map((msg, index) => {
-          const messageType = msg.messageType || msg.role;
+        {/* Build messages with optional inline streaming block */}
+        {(() => {
+          const elements: React.ReactNode[] = [];
+          const msgs = conversation?.messages || [];
 
-          // Render different components based on message type
-          switch (messageType) {
-            case 'tool_use':
-              return <ToolUseMessage key={index} message={msg} />;
-
-            case 'tool_result':
-              return <ToolResultMessage key={index} message={msg} />;
-
-            case 'thinking':
-              return <ThinkingMessage key={index} message={msg} />;
-
-            case 'error':
-              return <ErrorMessage key={index} message={msg} />;
-
-            case 'user':
-            case 'assistant':
-            default:
-              // Regular user/assistant messages
-              return (
-                <div key={index} className={`message ${msg.role}`}>
-                  <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
-                  <div className="message-content">
-                    {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
-                      <div className="message-attachments">
-                        {msg.attachments.map((file, i) => (
-                          <div key={i} className="attachment-badge">
-                            📎 {file.split('/').pop()}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                </div>
-              );
+          // Determine inline insert index based on processing-started timestamp
+          let insertIndex: number | null = null;
+          const startedAt = conversation?.id ? conversationStreamingStartRef.current.get(conversation.id) : undefined;
+          if (conversation?.id && startedAt !== undefined) {
+            // Find last index whose timestamp <= startedAt
+            let idx = -1;
+            for (let i = 0; i < msgs.length; i++) {
+              const ts = msgs[i].timestamp ?? 0;
+              if (ts <= startedAt) idx = i;
+            }
+            insertIndex = idx; // -1 means before first
           }
-        })}
 
-        {/* Loading message with rotation - shown before first token arrives */}
-        {isLoading && !streamingContent && (
-          <div className="message assistant streaming">
-            <div className="message-role">Claude</div>
-            <div className="message-content">
-              {["Thinking...", "One moment...", "Working on it...", "Processing..."][loadingMessageIndex]}
-              <span className="cursor">▊</span>
+          const renderStreamingBlock = () => (
+            <div key="__streaming__" className="message assistant streaming">
+              <div className="message-role">Claude</div>
+              <div className="message-content">
+                {streamingContent ? (
+                  <>
+                    <ReactMarkdown>{streamingContent}</ReactMarkdown>
+                    {isLoading && <span className="cursor">▊</span>}
+                  </>
+                ) : (
+                  <>
+                    {["Thinking...", "One moment...", "Working on it...", "Processing..."][loadingMessageIndex]}
+                    <span className="cursor">▊</span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
 
-        {streamingContent && (
-          <div className="message assistant streaming">
-            <div className="message-role">Claude</div>
-            <div className="message-content">
-              <ReactMarkdown>{streamingContent}</ReactMarkdown>
-              {isLoading && <span className="cursor">▊</span>}
-            </div>
-          </div>
-        )}
+          let streamingInserted = false;
+
+          // If insertIndex === -1 and we are loading, insert at top
+          if (isLoading && insertIndex === -1) {
+            elements.push(renderStreamingBlock());
+            streamingInserted = true;
+          }
+
+          msgs.forEach((msg, index) => {
+            const messageType = msg.messageType || msg.role;
+            let node: React.ReactNode;
+            switch (messageType) {
+              case 'tool_use':
+                node = <ToolUseMessage key={`msg-${index}`} message={msg} />;
+                break;
+              case 'tool_result':
+                node = <ToolResultMessage key={`msg-${index}`} message={msg} />;
+                break;
+              case 'thinking':
+                node = <ThinkingMessage key={`msg-${index}`} message={msg} />;
+                break;
+              case 'error':
+                node = <ErrorMessage key={`msg-${index}`} message={msg} />;
+                break;
+              case 'user':
+              case 'assistant':
+              default:
+                node = (
+                  <div key={`msg-${index}`} className={`message ${msg.role}`}>
+                    <div className="message-role">{msg.role === 'user' ? 'You' : 'Claude'}</div>
+                    <div className="message-content">
+                      {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
+                        <div className="message-attachments">
+                          {msg.attachments.map((file, i) => (
+                            <div key={i} className="attachment-badge">
+                              📎 {file.split('/').pop()}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  </div>
+                );
+                break;
+            }
+            elements.push(node);
+
+            // After rendering this message, insert streaming block if this is the anchor index
+            if (isLoading && insertIndex !== null && insertIndex === index) {
+              elements.push(renderStreamingBlock());
+              streamingInserted = true;
+            }
+          });
+
+          // Fallback: if we are loading but have no insert anchor, append at bottom (legacy behavior)
+          if (isLoading && insertIndex === null && !streamingInserted) {
+            elements.push(renderStreamingBlock());
+          }
+
+          return elements;
+        })()}
 
         {/* Error Message Display */}
         {sendError && (
