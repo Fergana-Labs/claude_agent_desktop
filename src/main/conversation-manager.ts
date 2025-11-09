@@ -181,7 +181,8 @@ export class ConversationManager {
       this.currentConversationId = targetConversationId;
     }
 
-    const timestamp = Date.now();
+    // Use provided timestamp if present to support anchoring batches (e.g., streaming/thinking) to a start time
+    const timestamp = message.timestamp ?? Date.now();
     const attachmentsJson = message.attachments ? JSON.stringify(message.attachments) : null;
     const messageType = message.messageType || message.role; // Default to role if not specified
     const metadataJson = message.metadata ? JSON.stringify(message.metadata) : null;
@@ -289,7 +290,7 @@ export class ConversationManager {
       messages = this.db.prepare(`
         SELECT * FROM messages
         WHERE conversation_id = ?
-        ORDER BY timestamp DESC
+        ORDER BY timestamp DESC, id DESC
         LIMIT ? OFFSET ?
       `).all(conversationId, limit, actualOffset) as any[];
 
@@ -300,7 +301,7 @@ export class ConversationManager {
       messages = this.db.prepare(`
         SELECT * FROM messages
         WHERE conversation_id = ?
-        ORDER BY timestamp ASC
+        ORDER BY timestamp ASC, id ASC
       `).all(conversationId) as any[];
     }
 

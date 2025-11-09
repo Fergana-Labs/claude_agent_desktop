@@ -194,6 +194,8 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     // Stream Claude's response via the agent manager
     // Track text chunks between events for proper chronological ordering
     let currentTextChunk = '';
+    // Anchor timestamp for this assistant reply so all parts (text/thinking/tools) group chronologically
+    const replyStartedAt = Date.now();
 
     // Helper function to save accumulated text chunk
     const saveTextChunk = async () => {
@@ -203,6 +205,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
             role: 'assistant',
             content: currentTextChunk,
             messageType: 'assistant',
+            timestamp: replyStartedAt,
           }, conversationId);
           mainWindow?.webContents.send('assistant-message-saved', { conversationId });
           currentTextChunk = '';
@@ -230,6 +233,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
             role: 'assistant',
             content: thinking,
             messageType: 'thinking',
+            timestamp: replyStartedAt,
           }, conversationId);
           mainWindow?.webContents.send('message-thinking', { thinking, conversationId });
           mainWindow?.webContents.send('assistant-message-saved', { conversationId });
@@ -249,6 +253,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
             content: `${toolName} started`,
             messageType: 'tool_use',
             metadata: { toolName, input: toolInput },
+            timestamp: replyStartedAt,
           }, conversationId);
           mainWindow?.webContents.send('tool-execution', {
             tool: toolName,
@@ -273,6 +278,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
             content: `${toolName} completed`,
             messageType: 'tool_result',
             metadata: { toolName, result },
+            timestamp: replyStartedAt,
           }, conversationId);
           mainWindow?.webContents.send('tool-execution', {
             tool: toolName,
