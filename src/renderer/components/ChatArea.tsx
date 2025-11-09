@@ -61,7 +61,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
   useEffect(() => {
     // Set up streaming token listener with throttling to reduce "twitchy" behavior
-    const removeTokenListener = window.electron.onMessageToken((data: { token: string; conversationId: string }) => {
+    const removeTokenListener = window.electron.onMessageToken((data: { token: string; conversationId: string; startedAt?: number }) => {
       // Only process tokens for the current conversation
       if (conversation?.id !== data.conversationId) {
         return;
@@ -70,6 +70,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       // Backend now sends the FULL accumulated text, not just deltas
       // So we can set it directly instead of appending
       conversationStreamingRef.current.set(data.conversationId, data.token);
+
+      // If a per-reply startedAt is provided, re-anchor the streaming block
+      if (typeof data.startedAt === 'number') {
+        conversationStreamingStartRef.current.set(data.conversationId, data.startedAt);
+      }
 
       // Use requestAnimationFrame to throttle updates to ~60fps max
       if (!streamingUpdateScheduledRef.current) {

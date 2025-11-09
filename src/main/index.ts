@@ -220,7 +220,7 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
         // Backend now sends the FULL accumulated text, not just deltas
         // So we can use it directly instead of accumulating
         currentTextChunk = accumulatedText;
-        mainWindow?.webContents.send('message-token', { token: accumulatedText, conversationId });
+        mainWindow?.webContents.send('message-token', { token: accumulatedText, conversationId, startedAt: replyStartedAt });
       },
       onThinking: async (thinking: string) => {
         // Save accumulated text before thinking

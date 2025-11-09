@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('send-message', message, conversationId, attachments),
 
   // Listen for streaming tokens
-  onMessageToken: (callback: (data: { token: string; conversationId: string }) => void) => {
-    const subscription = (_event: any, data: { token: string; conversationId: string }) => callback(data);
+  onMessageToken: (callback: (data: { token: string; conversationId: string; startedAt?: number }) => void) => {
+    const subscription = (_event: any, data: { token: string; conversationId: string; startedAt?: number }) => callback(data);
     ipcRenderer.on('message-token', subscription);
     return () => ipcRenderer.removeListener('message-token', subscription);
   },
@@ -164,7 +164,7 @@ contextBridge.exposeInMainWorld('electron', {
 // Type definitions for TypeScript
 export interface ElectronAPI {
   sendMessage: (message: string, conversationId: string, attachments?: string[]) => Promise<{ success: boolean; messageId: number }>;
-  onMessageToken: (callback: (data: { token: string; conversationId: string }) => void) => () => void;
+  onMessageToken: (callback: (data: { token: string; conversationId: string; startedAt?: number }) => void) => () => void;
   onMessageThinking: (callback: (data: { thinking: string; conversationId: string }) => void) => () => void;
   onToolExecution: (callback: (data: any) => void) => () => void;
   onPermissionRequest: (callback: (request: any) => void) => () => void;
