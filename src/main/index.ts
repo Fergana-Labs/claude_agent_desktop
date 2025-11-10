@@ -64,7 +64,7 @@ const createWindow = () => {
 
   // In development, load from Vite dev server
   // Try loading from Vite first, fall back to built files if unavailable
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  const isDev = process.env.NODE_ENV === 'development';
 
   if (isDev) {
     // Try common Vite ports
