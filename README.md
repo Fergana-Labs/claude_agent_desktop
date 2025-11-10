@@ -32,16 +32,8 @@ A desktop application that lets you use Claude Agent without needing to install 
 
 ## System Requirements
 
-### For End Users (Pre-built Package)
-
-If you're downloading a pre-built package from the [Releases](https://github.com/samzliu/claude_code_wrapper/releases) page, you only need:
-- **Anthropic API Key**: You can grab one at [console.anthropic.com](https://console.anthropic.com/)
-
-No build tools or development dependencies required!
-
 ### For Developers (Building from Source)
 
-If you're building from source, you need:
 - **Node.js**: Version 18 or higher
 - **npm**: Version 8 or higher
 - **Anthropic API Key**: You can grab one at [console.anthropic.com](https://console.anthropic.com/)
@@ -49,21 +41,9 @@ If you're building from source, you need:
   - **macOS**: XCode Command Line Tools (`xcode-select --install`)
   - **Windows**: Visual Studio Build Tools or Windows Build Tools
   - **Linux**: `build-essential`, `python3`, and related packages
+- **XCode** installed
 
 ## Installation
-
-### Option 1: Download Pre-built Package (Recommended)
-
-1. **Download the latest release** from the [Releases](https://github.com/samzliu/claude_code_wrapper/releases) page:
-   - **macOS**: Download the `.dmg` file
-   - **Windows**: Download the `.exe` installer
-   - **Linux**: Download the `.AppImage` file
-
-2. **Install and run** the application
-
-3. **Enter your API key** when prompted on first launch
-
-### Option 2: Build from Source
 
 1. **Clone the repository:**
    ```bash
