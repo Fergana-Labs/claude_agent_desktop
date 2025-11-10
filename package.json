@@ -24,6 +24,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
@@ -67,8 +68,25 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "logo.png"
+      "icon": "logo.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
     },
+    "dmg": {
+      "sign": false
+    },
+    "afterSign": "scripts/notarize.js",
     "win": {
       "target": "nsis",
       "icon": "logo.png"
