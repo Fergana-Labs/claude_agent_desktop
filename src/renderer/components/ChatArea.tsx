@@ -545,10 +545,41 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      // If there are permission/plan requests, don't send message (let global handler approve instead)
+      if (permissionRequests.length > 0 || planApprovalRequests.length > 0) {
+        e.preventDefault();
+        return; // Global handler will handle approval
+      }
       e.preventDefault();
       handleSend();
     }
   };
+
+  // Global keyboard shortcut handler for permission approvals
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Enter key: Approve current permission request or plan approval
+      if (e.key === 'Enter') {
+        // Priority 1: Permission requests
+        if (permissionRequests.length > 0 && currentPermissionIndex < permissionRequests.length) {
+          e.preventDefault();
+          e.stopPropagation();
+          const request = permissionRequests[currentPermissionIndex];
+          handleApprovePermission(request.id);
+        }
+        // Priority 2: Plan approval requests (if no permission requests)
+        else if (planApprovalRequests.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          const request = planApprovalRequests[0]; // Approve the first plan request
+          handleApprovePlan(request.id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [permissionRequests, currentPermissionIndex, planApprovalRequests]);
 
   const handleFileAttach = async () => {
     try {
@@ -1236,7 +1267,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   onClick={() => handleApprovePermission(request.id)}
                   className="permission-approve-btn"
@@ -1249,6 +1280,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                 >
                   ✗ Deny
                 </button>
+                <span style={{ marginLeft: 'auto', color: '#888', fontSize: '12px' }}>
+                  Press Enter to approve
+                </span>
               </div>
             </div>
           );
@@ -1287,7 +1321,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
                 {request.plan}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
                 onClick={() => handleApprovePlan(request.id)}
                 style={{
@@ -1316,6 +1350,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
               >
                 ✗ Deny
               </button>
+              <span style={{ marginLeft: 'auto', color: '#888', fontSize: '12px' }}>
+                Press Enter to approve
+              </span>
             </div>
           </div>
         ))}
