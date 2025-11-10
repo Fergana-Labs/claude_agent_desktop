@@ -5,6 +5,8 @@ import { ToolUseMessage } from './ToolUseMessage';
 import { ToolResultMessage } from './ToolResultMessage';
 import { ThinkingMessage } from './ThinkingMessage';
 import { ErrorMessage } from './ErrorMessage';
+import { Send, Square, Paperclip } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 import './ChatArea.css';
 
 interface ChatAreaProps {
@@ -1355,21 +1357,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
       </div>
 
       <div className="input-area">
-        {attachedFiles.length > 0 && (
-          <div className="attachments-preview">
-            {attachedFiles.map((file, index) => (
-              <div key={index} className="attachment-preview">
-                <span>📎 {file.split('/').pop()}</span>
-                <button onClick={() => removeAttachment(index)}>×</button>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="input-controls">
-          <button className="attach-btn" onClick={handleFileAttach} disabled={!folderExists}>
-            📎
-          </button>
           <textarea
             ref={textareaRef}
             value={input}
@@ -1382,26 +1370,45 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
           />
           <div className="button-stack">
             {isLoading && (
-              <button
-                className="stop-btn"
-                onClick={handleStop}
-              >
-                ■ Stop
-              </button>
+              <Tooltip content="Stop">
+                <button
+                  className="stop-btn"
+                  onClick={handleStop}
+                >
+                  <Square size={18} />
+                </button>
+              </Tooltip>
             )}
-            <button
-              className="send-btn"
-              onClick={handleSend}
-              disabled={!folderExists || (!input.trim() && attachedFiles.length === 0)}
-            >
-              Send
-            </button>
+            <Tooltip content="Send">
+              <button
+                className="send-btn"
+                onClick={handleSend}
+                disabled={!folderExists || (!input.trim() && attachedFiles.length === 0)}
+              >
+                <Send size={18} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>
 
       {/* Mode Selector Bar - Moved below input */}
       <div className="mode-selector-bar">
+        <Tooltip content="Attach files">
+          <button className="attach-btn" onClick={handleFileAttach} disabled={!folderExists}>
+            <Paperclip size={16} />
+          </button>
+        </Tooltip>
+        {attachedFiles.length > 0 && (
+          <div className="attachments-preview">
+            {attachedFiles.map((file, index) => (
+              <div key={index} className="attachment-preview">
+                <span>📎 {file.split('/').pop()}</span>
+                <button onClick={() => removeAttachment(index)}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
         <span className="mode-label">Mode:</span>
         <select
           value={mode}

@@ -1,0 +1,25 @@
+.tooltip {
+  position: fixed;
+  background-color: var(--bg-secondary, #2a2a2a);
+  color: var(--text-primary, #ffffff);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10000;
+  pointer-events: none;
+  transform: translateX(-50%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color, #404040);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--bg-secondary, #2a2a2a);
+}

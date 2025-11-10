@@ -161,25 +161,80 @@
 }
 
 .new-conversation-btn {
-  width: 100%;
+  flex: 1;
   padding: 10px;
-  background-color: var(--accent-blue);
-  color: white;
-  border: none;
-  border-radius: 4px;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
 }
 
 .new-conversation-btn .keyboard-hint {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-tertiary);
   opacity: 1;
 }
 
 .new-conversation-btn:hover {
-  background-color: #1177bb;
+  background-color: var(--bg-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.new-conversation-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.toolbar-buttons {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.delete-conversation-btn,
+.settings-btn-header {
+  padding: 10px;
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  min-width: 42px;
+}
+
+.delete-conversation-btn:hover:not(:disabled),
+.settings-btn-header:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.delete-conversation-btn:active:not(:disabled),
+.settings-btn-header:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.delete-conversation-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .conversations-list {
@@ -267,21 +322,23 @@
   padding: 10px;
   background-color: var(--bg-hover);
   color: var(--text-secondary);
-  border: none;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 42px;
 }
 
 .settings-btn:hover {
-  background-color: var(--bg-hover);
-  filter: brightness(1.2);
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  transform: translateY(-1px);
 }
 
 .title-edit-input-sidebar {

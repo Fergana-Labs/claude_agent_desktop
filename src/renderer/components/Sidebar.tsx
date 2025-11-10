@@ -1,5 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { Conversation, SearchResult } from '../types';
+import { Plus, Settings, Trash2 } from 'lucide-react';
+import { Tooltip } from './Tooltip';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -378,12 +380,32 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 Aa
               </button>
             </div>
-            <button className="new-conversation-btn" onClick={onNewConversation}>
-              + New Chat
-              <span className="keyboard-hint">
-                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+N' : 'Ctrl+N'}
-              </span>
-            </button>
+            <div className="toolbar-buttons">
+              {onShowSettings && (
+                <Tooltip content="Settings">
+                  <button className="settings-btn-header" onClick={onShowSettings}>
+                    <Settings size={18} />
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip content="Delete Conversation">
+                <button
+                  className="delete-conversation-btn"
+                  onClick={() => currentConversationId && onDeleteConversation(currentConversationId)}
+                  disabled={!currentConversationId}
+                >
+                  <Trash2 size={18} />
+                </button>
+              </Tooltip>
+              <Tooltip content="New Chat">
+                <button className="new-conversation-btn" onClick={onNewConversation}>
+                  <Plus size={20} />
+                  <span className="keyboard-hint">
+                    {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+N' : 'Ctrl+N'}
+                  </span>
+                </button>
+              </Tooltip>
+            </div>
           </>
         )}
       </div>
@@ -556,15 +578,6 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             </div>
           </div>
         ))}
-        </div>
-      )}
-
-      {/* Settings Footer */}
-      {onShowSettings && !isCollapsed && (
-        <div className="sidebar-footer">
-          <button className="settings-btn" onClick={onShowSettings}>
-            ⚙️ Settings
-          </button>
         </div>
       )}
 

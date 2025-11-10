@@ -45,6 +45,7 @@
     "docx": "^8.5.0",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
+    "lucide-react": "^0.553.0",
     "mammoth": "^1.11.0",
     "node-machine-id": "^1.1.12",
     "pptxgenjs": "^3.12.0",
