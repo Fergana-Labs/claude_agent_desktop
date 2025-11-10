@@ -1,6 +1,7 @@
 # Claude Agent Desktop
 
-<img width="2380" height="1582" alt="Screenshot 2025-11-10 at 1 41 22 PM" src="https://github.com/user-attachments/assets/176e375d-0e7a-4da0-bd3e-e217f335c92b" />
+<img width="2382" height="1594" alt="CleanShot 2025-11-10 at 13 53 01@2x" src="https://github.com/user-attachments/assets/c60b1923-cc3a-4a16-9408-b0d99eb69776" />
+
 
 
 Video Demo: https://youtu.be/bAHih0SDvjg 
