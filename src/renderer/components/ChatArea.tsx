@@ -962,20 +962,29 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
       {/* Title Header Bar */}
       <div className="chat-header">
-        {isEditingTitle ? (
-          <input
-            ref={titleInputRef}
-            type="text"
-            className="title-edit-input"
-            value={editedTitle}
-            onChange={(e) => setEditedTitle(e.target.value)}
-            onKeyDown={handleTitleKeyDown}
-            onBlur={handleTitleSave}
-          />
-        ) : (
-          <h3 className="chat-title" onClick={handleTitleClick}>
-            {conversation?.title || 'New Conversation'}
-          </h3>
+        <div className="header-left">
+          {isEditingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              className="title-edit-input"
+              value={editedTitle}
+              onChange={(e) => setEditedTitle(e.target.value)}
+              onKeyDown={handleTitleKeyDown}
+              onBlur={handleTitleSave}
+            />
+          ) : (
+            <h3 className="chat-title" onClick={handleTitleClick}>
+              {conversation?.title || 'New Conversation'}
+            </h3>
+          )}
+        </div>
+        {conversation?.projectPath && (
+          <div className="header-right">
+            <span className="current-directory" title={conversation.projectPath}>
+              {conversation.projectPath}
+            </span>
+          </div>
         )}
       </div>
 
