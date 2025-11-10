@@ -1,5 +1,10 @@
 # Claude Agent Desktop
 
+<img width="2380" height="1582" alt="Screenshot 2025-11-10 at 1 41 22 PM" src="https://github.com/user-attachments/assets/176e375d-0e7a-4da0-bd3e-e217f335c92b" />
+
+
+Video Demo: https://youtu.be/bAHih0SDvjg 
+
 A desktop application that lets you use Claude Agent without needing to install the Claude Code CLI. Get access to all the capabilities of Claude Code in an easy-to-use Electron app, plus some additional Claude Skills that are available in the Claude web app, but not the the standard Claude Code CLI.
 
 ## Features
