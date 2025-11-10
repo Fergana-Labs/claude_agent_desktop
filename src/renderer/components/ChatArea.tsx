@@ -62,6 +62,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const conversationPlanApprovalsRef = useRef<Map<string, PlanApprovalRequest[]>>(new Map());
   const conversationStreamingStartRef = useRef<Map<string, number>>(new Map());
 
+  // Check if conversation has started (has any messages)
+  const chatHasStarted = (conversation?.messages.length ?? 0) > 0;
+
   useEffect(() => {
     // Set up streaming token listener with throttling to reduce "twitchy" behavior
     const removeTokenListener = window.electron.onMessageToken((data: { token: string; conversationId: string; startedAt?: number }) => {
@@ -348,6 +351,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     loadMode();
   }, [conversation]);
+
+  useEffect(() => {
+    // Clear warning state when switching conversations
+    setShowAutoAcceptWarning(false);
+    setPendingMode(null);
+    setDontShowAgainChecked(false);
+  }, [conversation?.id]);
 
   // Clear streaming content when new messages arrive (saved messages loaded from DB)
   useEffect(() => {
@@ -789,6 +799,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
 
     // Check if switching to Auto-Accept All (bypassPermissions)
     if (newMode === 'bypassPermissions') {
+      // Prevent switching to bypassPermissions after conversation has started
+      if (chatHasStarted) {
+        console.log('Cannot switch to Auto-Accept All mode - conversation has already started');
+        return;
+      }
+
       // Check localStorage for "don't show again" preference
       const hideWarning = localStorage.getItem('hideAutoAcceptWarning') === 'true';
 
@@ -1423,7 +1439,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
         >
           <option value="default">Ask for Permissions</option>
           <option value="acceptEdits">Accept Edits Only</option>
-          <option value="bypassPermissions">Auto-Accept All</option>
+          <option value="bypassPermissions" disabled={chatHasStarted}>Auto-Accept All</option>
           <option value="plan">Plan Mode</option>
         </select>
         <div className="mode-badge" style={{
