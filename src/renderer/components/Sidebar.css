@@ -51,14 +51,14 @@
 .collapse-toggle-btn {
   background: none;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   padding: 4px 8px;
   line-height: 1;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   min-width: 32px;
   height: 28px;
   display: flex;
@@ -68,7 +68,8 @@
 
 .collapse-toggle-btn:hover {
   background-color: var(--bg-hover);
-  border-color: var(--accent-blue);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .search-container {
@@ -84,15 +85,17 @@
   padding: 8px 32px 8px 10px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all var(--transition-base);
 }
 
 .search-input:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
+  background-color: var(--bg-primary);
 }
 
 .search-input::placeholder {
@@ -166,11 +169,11 @@
   background-color: var(--bg-hover);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -207,11 +210,11 @@
   background-color: var(--bg-hover);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,19 +251,24 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  margin-bottom: 4px;
-  border-radius: 4px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition-base);
   position: relative;
+  border: 1px solid transparent;
 }
 
 .conversation-item:hover {
   background-color: var(--bg-secondary);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .conversation-item.active {
-  background-color: var(--bg-hover);
+  background: linear-gradient(90deg, var(--accent-primary-light) 0%, rgba(99, 102, 241, 0.03) 100%);
+  border-left: 3px solid var(--accent-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .conversation-item.focused {

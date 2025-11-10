@@ -184,10 +184,10 @@
   background-color: var(--bg-hover);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   height: 36px;
   width: 36px;
   min-width: 36px;
@@ -199,7 +199,9 @@
 .attach-btn:hover:not(:disabled) {
   background-color: var(--bg-secondary);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .attach-btn:active:not(:disabled) {
@@ -217,17 +219,20 @@ textarea {
   padding: 12px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   font-family: inherit;
   font-size: 14px;
   resize: none;
   line-height: 1.5;
+  transition: all var(--transition-base);
 }
 
 textarea:focus {
   outline: none;
-  border-color: var(--accent-blue);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
+  background-color: var(--bg-primary);
 }
 
 textarea:disabled {
@@ -237,26 +242,26 @@ textarea:disabled {
 
 .send-btn {
   padding: 10px;
-  background-color: var(--bg-hover);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all var(--transition-base);
   height: 42px;
   width: 42px;
   min-width: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-md);
 }
 
 .send-btn:hover:not(:disabled) {
-  background-color: var(--bg-secondary);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .send-btn:active:not(:disabled) {
@@ -367,17 +372,21 @@ textarea:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  background-color: var(--bg-secondary);
-  border-radius: 6px;
+  padding: 12px 16px;
+  background-color: var(--accent-blue-light);
+  border-radius: var(--radius-md);
   border-left: 3px solid var(--accent-blue);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all var(--transition-base);
   user-select: none;
+  border: 1px solid var(--border-color);
+  border-left-width: 3px;
 }
 
 .tool-header:hover {
   background-color: var(--bg-hover);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .tool-icon {
@@ -393,19 +402,22 @@ textarea:disabled {
 }
 
 .expand-icon {
-  font-size: 10px;
-  color: var(--text-tertiary);
+  font-size: 14px;
+  color: var(--accent-primary);
   flex-shrink: 0;
+  transition: transform var(--transition-fast);
 }
 
 .tool-details {
-  margin-top: 4px;
-  padding: 12px 14px;
-  background-color: var(--bg-primary);
-  border-radius: 6px;
+  margin-top: 8px;
+  padding: 12px 16px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
   border-left: 3px solid var(--accent-blue);
   font-size: 13px;
   color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-left-width: 3px;
 }
 
 .tool-detail-section {
@@ -475,11 +487,12 @@ textarea:disabled {
 
 .thinking-message .tool-header {
   border-left-color: var(--accent-purple);
+  background-color: var(--accent-purple-light);
 }
 
 .error-message .tool-header {
   border-left-color: var(--accent-red);
-  background-color: rgba(212, 68, 68, 0.2);
+  background-color: var(--accent-red-light);
 }
 
 .error-message .tool-summary {
@@ -529,15 +542,17 @@ textarea:disabled {
 
 .current-directory {
   font-size: 13px;
-  color: var(--text-tertiary);
+  color: var(--accent-primary);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  padding: 4px 10px;
-  background: var(--bg-secondary);
-  border-radius: 4px;
+  padding: 6px 12px;
+  background: var(--accent-primary-light);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 400px;
+  border: 1px solid var(--border-color);
+  font-weight: 500;
 }
 
 .chat-title {
@@ -674,10 +689,26 @@ textarea:disabled {
 }
 
 .mode-select {
-  background: var(--bg-primary);
-  padding: 4px 8px;
-  border-radius: 4px;
+  background: var(--accent-gradient);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 16px;
   font-size: 13px;
+  font-weight: 500;
+  border: none;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.mode-select:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.mode-select:focus {
+  outline: none;
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
 }
 
 .mode-badge {
