@@ -63,19 +63,19 @@
       "dist/**/*",
       ".claude/**/*",
       "plugins/**/*",
-      "logo-icon.png"
+      "logo.png"
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "logo-icon.png"
+      "icon": "logo.png"
     },
     "win": {
       "target": "nsis",
-      "icon": "logo-icon.png"
+      "icon": "logo.png"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "logo-icon.png"
+      "icon": "logo.png"
     }
   }
 }

@@ -12,6 +12,21 @@ import { ApiKeyManager } from './api-key-manager.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Set application name (used in menu bar and About dialog)
+// Must be set before app.whenReady() for it to take effect
+app.setName('Claude Agent Desktop');
+
+// Set About panel options (macOS)
+if (process.platform === 'darwin') {
+  app.setAboutPanelOptions({
+    applicationName: 'Claude Agent Desktop',
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: '© 2024 Claude Agent Desktop',
+    iconPath: path.join(__dirname, '../../logo.png'),
+  });
+}
+
 // Fix PATH for Claude Agent SDK to find node
 // This is critical for the SDK to spawn child processes
 if (process.platform === 'darwin' || process.platform === 'linux') {
@@ -39,7 +54,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, '../../logo-icon.png'),
+    icon: path.join(__dirname, '../../logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -77,6 +92,14 @@ const createWindow = () => {
 };
 
 app.whenReady().then(async () => {
+  // Set dock icon (macOS)
+  if (process.platform === 'darwin' && app.dock) {
+    const iconPath = path.join(__dirname, '../../logo.png');
+    if (existsSync(iconPath)) {
+      app.dock.setIcon(iconPath);
+    }
+  }
+
   // Initialize API Key Manager
   apiKeyManager = new ApiKeyManager();
 
