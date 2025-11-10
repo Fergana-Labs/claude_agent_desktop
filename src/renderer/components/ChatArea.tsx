@@ -376,6 +376,16 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
     }
   }, [conversation?.id, conversation?.messages.length, conversation?.totalMessageCount]);
 
+  // Autoscroll when permission requests or plan approvals appear
+  useEffect(() => {
+    if (permissionRequests.length > 0 || planApprovalRequests.length > 0) {
+      // Use requestAnimationFrame to ensure DOM has updated after state change
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+  }, [permissionRequests.length, planApprovalRequests.length]);
+
   // Scroll event listener for loading older messages
   useEffect(() => {
     const container = messagesContainerRef.current;
