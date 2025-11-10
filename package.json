@@ -24,14 +24,14 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@electron/notarize": "^3.1.1",
+    "@electron/notarize": "^2.2.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^8.2.2",
-    "electron": "^39.1.1",
+    "electron": "^28.1.4",
     "electron-builder": "^24.9.1",
     "electron-rebuild": "^3.2.9",
     "ts-node": "^10.9.2",
@@ -64,7 +64,8 @@
       "dist/**/*",
       ".claude/**/*",
       "plugins/**/*",
-      "logo.png"
+      "logo.png",
+      "!node_modules/@anthropic-ai/claude-agent-sdk/vendor/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -73,6 +74,9 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": {
+        "teamId": "MU28U3U2VB"
+      },
       "target": [
         {
           "target": "dmg",
@@ -86,7 +90,6 @@
     "dmg": {
       "sign": false
     },
-    "afterSign": "scripts/notarize.js",
     "win": {
       "target": "nsis",
       "icon": "logo.png"
