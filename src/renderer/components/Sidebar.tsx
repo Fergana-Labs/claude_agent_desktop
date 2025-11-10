@@ -381,7 +381,7 @@ const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             <button className="new-conversation-btn" onClick={onNewConversation}>
               + New Chat
               <span className="keyboard-hint">
-                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+T' : 'Ctrl+T'}
+                {navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? 'Cmd+T or Cmd+N' : 'Ctrl+T or Ctrl+N'}
               </span>
             </button>
           </>

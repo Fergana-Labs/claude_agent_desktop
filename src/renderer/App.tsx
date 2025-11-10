@@ -166,10 +166,10 @@ function App() {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
-      // Cmd-T / Ctrl-T: Create new chat with current folder
-      // Don't trigger when typing in input/textarea
-      if (cmdOrCtrl && e.key === 't' && !isInInputField) {
-        console.log('[Keyboard] Cmd-T triggered');
+      // Cmd-T / Ctrl-T or Cmd-N / Ctrl-N: Create new chat with current folder
+      // Works even when typing in input field
+      if (cmdOrCtrl && (e.key === 't' || e.key === 'n')) {
+        console.log('[Keyboard] Cmd-T/N triggered');
         e.preventDefault();
         if (currentConversation?.projectPath) {
           // Create new chat with current conversation's folder
