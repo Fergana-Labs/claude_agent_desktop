@@ -90,6 +90,7 @@
     "dmg": {
       "sign": false
     },
+    "afterSign": "scripts/notarize.cjs",
     "win": {
       "target": "nsis",
       "icon": "logo.png"
