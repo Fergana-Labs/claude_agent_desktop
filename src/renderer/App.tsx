@@ -192,6 +192,14 @@ function App() {
         }
       }
 
+      // Cmd-, / Ctrl-,: Open settings
+      // Works even when typing in input field
+      if (cmdOrCtrl && e.key === ',') {
+        console.log('[Keyboard] Cmd-, triggered');
+        e.preventDefault();
+        setShowSettings(true);
+      }
+
       // Cmd-F / Ctrl-F: Open find bar (don't trigger in input fields)
       if (cmdOrCtrl && e.key === 'f' && !isInInputField) {
         console.log('[Keyboard] Cmd-F triggered');
