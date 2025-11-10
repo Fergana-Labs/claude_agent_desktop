@@ -8,7 +8,7 @@ A desktop application that lets you use Claude Agent without needing to install 
 
 - **Comprehensive File Operations**: Claude can read, write, edit, and analyze files across your entire project. It understands code structure, can make precise edits using line-based modifications, and handles multiple file formats including source code, configuration files, and more.
 
-- **Enhanced Claude Skills**: Includes premium capabilities from the Claude web app that aren't available in the standard Claude Code CLI:
+- **Enhanced Claude Skills**: Includes premium [skills](https://www.claude.com/blog/skills) from the Claude web app that aren't available in the standard Claude Code CLI:
   - **Excel**: Create, read, edit, and analyze Microsoft Excel spreadsheets (.xlsx files) with formulas, calculations, and charts
   - **PowerPoint**: Generate and manipulate PowerPoint presentations (.pptx files) with slides, text, bullets, tables, and charts
   - **Word**: Create, read, edit, and format Microsoft Word documents (.docx files)
