@@ -1,13 +1,22 @@
-# Claude Office Assistant
+# Claude Agent Desktop
 
-An Electron desktop application that integrates Claude AI with Microsoft Office tools (Word, Excel, PowerPoint). Built with React, TypeScript, and the Claude Agent SDK.
+A powerful Electron desktop application that brings Claude AI to your desktop with advanced features including Microsoft Office integration, MCP server support, and secure local execution. Built with React, TypeScript, and the Claude Agent SDK.
 
 ## Features
 
 - **AI-Powered Chat Interface**: Interactive chat with Claude AI using streaming responses with thinking visibility
+- **Secure API Key Storage**:
+  - AES-256-GCM encrypted storage for your Anthropic API key
+  - Machine-specific encryption (no API key in plain text files)
+  - In-app settings for easy configuration
+- **MCP (Model Context Protocol) Integration**:
+  - Connect to MCP servers for extended capabilities
+  - Support for stdio, HTTP, and SSE server types
+  - Per-project `.mcp.json` configuration with environment variable expansion
+  - Built-in UI for managing MCP server configurations
 - **Microsoft Office Integration**: Create, read, and manipulate Office documents
   - Word (.docx) - Create documents, add paragraphs, tables, and formatting
-  - Excel (.xlsx) - Create spreadsheets, formulas, charts, and data analysis
+  - Excel (.xlsx) - Create spreadsheets, formulas, and data analysis
   - PowerPoint (.pptx) - Create presentations with slides, text, and visuals
 - **Multi-Conversation Management**:
   - Persistent conversation storage with SQLite
@@ -18,6 +27,7 @@ An Electron desktop application that integrates Claude AI with Microsoft Office 
   - Streaming input mode (queue messages while Claude responds)
   - Message interruption (Stop button)
   - Permission modes: Ask, Accept Edits, Auto-Accept, Plan
+  - Custom system prompts for tailored AI behavior
   - Real-time tool execution visualization
 - **Modern UI**: Dark-themed, responsive interface built with React
 
@@ -40,17 +50,21 @@ An Electron desktop application that integrates Claude AI with Microsoft Office 
    npm install
    ```
 
-3. Set up environment variables:
-
-   Edit `.env` and add your Anthropic API key (get one from https://console.anthropic.com/):
-   ```
-   ANTHROPIC_API_KEY=your_api_key_here
-   ```
-
-4. Build the TypeScript files:
+3. Build the TypeScript files:
    ```bash
    npm run build:main
    ```
+
+4. Launch the application:
+   ```bash
+   npm run dev
+   ```
+
+5. Configure your API key:
+   - Open Settings (gear icon in the top right)
+   - Go to the "General" tab
+   - Enter your Anthropic API key (get one from https://console.anthropic.com/)
+   - The key will be encrypted and stored securely on your machine
 
 ## Development
 
@@ -156,10 +170,12 @@ Control how Claude handles file operations and tool usage:
 
 - **Ask** (default): Request permission for each operation
 - **Accept Edits**: Auto-approve edit operations, ask for others
-- **Auto-Accept**: Approve all operations automatically
+- **Auto-Accept**: Approve all operations automatically ⚠️ **Use with caution**
 - **Plan**: Plan mode for task planning
 
 Change the mode using the dropdown in the chat header.
+
+⚠️ **Security Note**: "Auto-Accept" mode automatically approves all file operations, bash commands, and tool executions without confirmation. Only use this mode in trusted environments and when you understand what Claude will do.
 
 ### Message Control
 
@@ -196,15 +212,55 @@ Each Office tool is implemented as:
 
 ## Configuration
 
+### API Key Management
+
+Your Anthropic API key is stored securely using AES-256-GCM encryption:
+- Encryption key is derived from your machine's unique ID using PBKDF2
+- Encrypted key is stored in your user data directory (`api-key.enc`)
+- No plain text API keys in configuration files
+- Machine-specific encryption means the key only works on your machine
+
+To update your API key, go to Settings → General tab.
+
+### MCP Server Configuration
+
+MCP (Model Context Protocol) servers extend Claude's capabilities. Configure them per-project using a `.mcp.json` file in your project folder:
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["path/to/server.js"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    },
+    "http-server": {
+      "type": "http",
+      "url": "https://api.example.com/mcp"
+    }
+  }
+}
+```
+
+**Environment Variable Expansion**: Use `${VAR}` or `${VAR:-default}` syntax in configuration values. Variables are expanded from your system environment.
+
+**Configuration via UI**: You can also manage MCP servers through Settings → MCPs tab.
+
+**Example Template**: See `.mcp.json.example` in the project root for a complete example.
+
 ### Claude Agent Settings
 
 The Agent SDK is configured in `src/main/claude-agent.ts`:
 - Model: `claude-sonnet-4-5` (default), `claude-opus-4-1`, `claude-haiku-4-5`
 - Allowed tools: `Skill`, `Read`, `Write`, `Bash`
-- Skills path: User data directory + `.claude/skills`
+- Skills path: `plugins/skills`
 - Streaming input mode: Enabled via async generator pattern
 - Session persistence: Per-conversation session IDs stored in SQLite
 - Permission modes: Set via `Query.setPermissionMode()`
+- Custom system prompts: Configurable per-conversation via Settings
 
 ### Electron Builder
 
@@ -223,9 +279,10 @@ npx electron-rebuild -f -w better-sqlite3
 This is handled automatically by the postinstall script, but you can run it manually if needed.
 
 ### API Key Issues
-- Ensure `ANTHROPIC_API_KEY` is set in `.env`
-- Restart the app after changing environment variables
-- The .env file should be in the project root directory
+- Enter your API key via Settings → General tab (not via .env file)
+- Ensure your API key is valid (test at https://console.anthropic.com/)
+- If encryption issues occur, delete `api-key.enc` from your user data directory and re-enter the key
+- The API key is machine-specific; if you move to a new machine, you'll need to re-enter it
 
 ### Office Tool Errors
 - Check that file paths are absolute and accessible

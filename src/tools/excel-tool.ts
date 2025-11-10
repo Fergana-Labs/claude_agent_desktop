@@ -112,7 +112,7 @@ export class ExcelTool {
 
     // Note: ExcelJS doesn't have full chart support yet
     // This would need a library like xlsx-chart or direct XML manipulation
-    console.log('Chart creation requested but requires additional implementation');
+    // Chart creation requires additional implementation
 
     await workbook.xlsx.writeFile(filePath);
   }
