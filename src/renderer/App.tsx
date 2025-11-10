@@ -465,6 +465,7 @@ function App() {
         showFindBar={showFindBar}
         onCloseFindBar={() => setShowFindBar(false)}
         onConversationTitleUpdated={loadConversations}
+        onOpenSettings={() => setShowSettings(true)}
       />
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />

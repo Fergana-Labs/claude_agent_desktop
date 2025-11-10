@@ -159,6 +159,12 @@ contextBridge.exposeInMainWorld('electron', {
     systemPromptMode?: 'append' | 'custom';
     customSystemPrompt?: string;
   }) => ipcRenderer.invoke('update-app-settings', settings),
+
+  // API Key Management
+  getApiKeyStatus: () => ipcRenderer.invoke('get-api-key-status'),
+  getApiKey: () => ipcRenderer.invoke('get-api-key'),
+  setApiKey: (apiKey: string) => ipcRenderer.invoke('set-api-key', apiKey),
+  deleteApiKey: () => ipcRenderer.invoke('delete-api-key'),
 });
 
 // Type definitions for TypeScript
@@ -206,6 +212,10 @@ export interface ElectronAPI {
   mcpFileExists: () => Promise<{ success: boolean; exists: boolean; error?: string }>;
   mcpReloadConfig: () => Promise<{ success: boolean; message?: string; error?: string }>;
   playNotificationSound: () => Promise<{ success: boolean }>;
+  getApiKeyStatus: () => Promise<{ hasApiKey: boolean }>;
+  getApiKey: () => Promise<{ apiKey: string | null }>;
+  setApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
+  deleteApiKey: () => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

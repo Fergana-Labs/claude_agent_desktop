@@ -2,19 +2,15 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { config as loadEnv } from 'dotenv';
 import { existsSync, mkdirSync } from 'fs';
 import { ConversationAgentManager } from './conversation-agent-manager.js';
 import { ConversationManager } from './conversation-manager.js';
 import { McpConfigLoader } from './mcp-config.js';
 import { registerMcpIpcHandlers } from './mcp-ipc.js';
+import { ApiKeyManager } from './api-key-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Load .env file
-const envPath = path.join(__dirname, '../../.env');
-loadEnv({ path: envPath });
 
 // Fix PATH for Claude Agent SDK to find node
 // This is critical for the SDK to spawn child processes
@@ -37,6 +33,7 @@ if (process.platform === 'darwin' || process.platform === 'linux') {
 let mainWindow: BrowserWindow | null = null;
 let agentManager: ConversationAgentManager | null = null;
 let conversationManager: ConversationManager | null = null;
+let apiKeyManager: ApiKeyManager | null = null;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -80,6 +77,9 @@ const createWindow = () => {
 };
 
 app.whenReady().then(async () => {
+  // Initialize API Key Manager
+  apiKeyManager = new ApiKeyManager();
+
   // Initialize Conversation Manager
   conversationManager = new ConversationManager(
     path.join(app.getPath('userData'), 'conversations.db')
@@ -95,9 +95,12 @@ app.whenReady().then(async () => {
   // Initialize Agent Manager
   const pluginsPath = path.join(__dirname, '../../plugins');
 
+  // Load API key from encrypted storage
+  const apiKey = apiKeyManager.getApiKey() || '';
+
   agentManager = new ConversationAgentManager(
     {
-      apiKey: process.env.ANTHROPIC_API_KEY || '',
+      apiKey: apiKey,
       pluginsPath: pluginsPath,
       mcpServers: mcpServers,
     },
@@ -712,4 +715,64 @@ ipcMain.handle('unpin-conversation', async (event, conversationId: string) => {
 
   await conversationManager.unpinConversation(conversationId);
   return { success: true };
+});
+
+// API Key Management
+ipcMain.handle('get-api-key-status', async () => {
+  if (!apiKeyManager) {
+    throw new Error('API key manager not initialized');
+  }
+
+  return { hasApiKey: apiKeyManager.hasApiKey() };
+});
+
+ipcMain.handle('get-api-key', async () => {
+  if (!apiKeyManager) {
+    throw new Error('API key manager not initialized');
+  }
+
+  const apiKey = apiKeyManager.getApiKey();
+  return { apiKey: apiKey || null };
+});
+
+ipcMain.handle('set-api-key', async (event, apiKey: string) => {
+  if (!apiKeyManager || !agentManager) {
+    throw new Error('Services not initialized');
+  }
+
+  try {
+    // Validate API key format (basic check)
+    if (!apiKey || !apiKey.trim()) {
+      return { success: false, error: 'API key cannot be empty' };
+    }
+
+    if (!apiKey.startsWith('sk-ant-')) {
+      return { success: false, error: 'Invalid API key format. Anthropic API keys should start with "sk-ant-"' };
+    }
+
+    // Save encrypted API key
+    apiKeyManager.setApiKey(apiKey);
+
+    // Update the agent manager with the new API key
+    agentManager.updateApiKey(apiKey);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error setting API key:', error);
+    return { success: false, error: (error as Error).message };
+  }
+});
+
+ipcMain.handle('delete-api-key', async () => {
+  if (!apiKeyManager) {
+    throw new Error('API key manager not initialized');
+  }
+
+  try {
+    apiKeyManager.deleteApiKey();
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting API key:', error);
+    return { success: false, error: (error as Error).message };
+  }
 });

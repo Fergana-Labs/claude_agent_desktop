@@ -46,6 +46,7 @@
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "mammoth": "^1.11.0",
+    "node-machine-id": "^1.1.12",
     "pptxgenjs": "^3.12.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

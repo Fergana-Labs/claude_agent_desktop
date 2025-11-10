@@ -11,6 +11,13 @@ const GeneralSettingsTab: React.FC = () => {
   const [theme, setTheme] = useState<ThemeType>('dark');
   const [audioEnabled, setAudioEnabled] = useState(true);
 
+  // API Key state
+  const [apiKey, setApiKey] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState('');
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+
   // Load settings from localStorage on mount
   useEffect(() => {
     const savedModel = localStorage.getItem('selectedModel') as ModelType | null;
@@ -40,7 +47,24 @@ const GeneralSettingsTab: React.FC = () => {
 
     const savedAudio = localStorage.getItem('audioNotificationsEnabled');
     setAudioEnabled(savedAudio !== 'false'); // Default to true if not set
+
+    // Load API key status
+    loadApiKeyStatus();
   }, []);
+
+  const loadApiKeyStatus = async () => {
+    try {
+      const result = await window.electron.getApiKeyStatus();
+      setHasApiKey(result.hasApiKey);
+      // If API key is set, show placeholder dots (will fetch real key when user clicks Show)
+      if (result.hasApiKey) {
+        setApiKey('••••••••••••••••••••');
+        setShowApiKey(false); // Always start with hidden
+      }
+    } catch (error) {
+      console.error('Failed to load API key status:', error);
+    }
+  };
 
   const applyTheme = (newTheme: ThemeType) => {
     document.documentElement.setAttribute('data-theme', newTheme);
@@ -105,8 +129,147 @@ const GeneralSettingsTab: React.FC = () => {
     localStorage.setItem('audioNotificationsEnabled', newValue.toString());
   };
 
+  const handleSaveApiKey = async () => {
+    // Don't save if it's just the placeholder
+    if (apiKey === '••••••••••••••••••••' || !apiKey.trim()) {
+      return;
+    }
+
+    setApiKeyError('');
+    setIsSavingApiKey(true);
+
+    try {
+      const result = await window.electron.setApiKey(apiKey);
+
+      if (result.success) {
+        setHasApiKey(true);
+        setApiKey('••••••••••••••••••••'); // Show placeholder after successful save
+        setShowApiKey(false);
+      } else {
+        setApiKeyError(result.error || 'Failed to save API key');
+      }
+    } catch (error) {
+      console.error('Error saving API key:', error);
+      setApiKeyError('An unexpected error occurred');
+    } finally {
+      setIsSavingApiKey(false);
+    }
+  };
+
+  const handleClearApiKey = async () => {
+    if (!confirm('Are you sure you want to delete your API key? You will need to re-enter it to use Claude.')) {
+      return;
+    }
+
+    try {
+      const result = await window.electron.deleteApiKey();
+
+      if (result.success) {
+        setHasApiKey(false);
+        setApiKey('');
+        setApiKeyError('');
+      } else {
+        setApiKeyError(result.error || 'Failed to delete API key');
+      }
+    } catch (error) {
+      console.error('Error deleting API key:', error);
+      setApiKeyError('An unexpected error occurred');
+    }
+  };
+
+  const handleToggleShowApiKey = async () => {
+    if (!showApiKey && hasApiKey) {
+      // Fetch the real API key when showing
+      try {
+        const result = await window.electron.getApiKey();
+        if (result.apiKey) {
+          setApiKey(result.apiKey);
+          setShowApiKey(true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch API key:', error);
+        setApiKeyError('Failed to retrieve API key');
+      }
+    } else {
+      // Hide the API key
+      setShowApiKey(false);
+      if (hasApiKey) {
+        setApiKey('••••••••••••••••••••');
+      }
+    }
+  };
+
   return (
     <div className="general-settings-tab">
+      <div className="settings-section">
+        <h3>Anthropic API Key</h3>
+        <p className="settings-description">
+          Your API key is stored securely and encrypted on your device. Get your API key from{' '}
+          <a
+            href="https://console.anthropic.com/settings/keys"
+            className="api-key-help-link"
+            onClick={(e) => {
+              e.preventDefault();
+              window.electron.openFile('https://console.anthropic.com/settings/keys');
+            }}
+          >
+            console.anthropic.com
+          </a>
+        </p>
+        <div className="setting-item">
+          <div className={`api-key-status ${hasApiKey ? 'set' : 'not-set'}`}>
+            {hasApiKey ? '✓ API Key Set' : '⚠ API Key Not Set'}
+          </div>
+
+          <div className="api-key-input-container">
+            <div className="api-key-input-wrapper">
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                className="api-key-input"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-ant-..."
+                disabled={isSavingApiKey}
+                readOnly={hasApiKey}
+              />
+              {hasApiKey && (
+                <button
+                  className="api-key-toggle"
+                  onClick={handleToggleShowApiKey}
+                  type="button"
+                >
+                  {showApiKey ? 'Hide' : 'Show'}
+                </button>
+              )}
+            </div>
+            <div className="api-key-actions">
+              {!hasApiKey && (
+                <button
+                  className="save-api-key-btn"
+                  onClick={handleSaveApiKey}
+                  disabled={!apiKey.trim() || isSavingApiKey}
+                >
+                  {isSavingApiKey ? 'Saving...' : 'Save'}
+                </button>
+              )}
+              {hasApiKey && (
+                <button
+                  className="clear-api-key-btn"
+                  onClick={handleClearApiKey}
+                  disabled={isSavingApiKey}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {apiKeyError && (
+            <p className="api-key-error">{apiKeyError}</p>
+          )}
+        </div>
+      </div>
+
       <div className="settings-section">
         <h3>Model Selection</h3>
         <p className="settings-description">Choose which Claude model to use for conversations</p>

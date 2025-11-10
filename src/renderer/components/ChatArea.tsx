@@ -15,9 +15,10 @@ interface ChatAreaProps {
   showFindBar?: boolean;
   onCloseFindBar?: () => void;
   onConversationTitleUpdated?: () => void;
+  onOpenSettings?: () => void;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages, onChatAreaFocus, showFindBar, onCloseFindBar, onConversationTitleUpdated }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoadMoreMessages, onChatAreaFocus, showFindBar, onCloseFindBar, onConversationTitleUpdated, onOpenSettings }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
@@ -434,6 +435,31 @@ const ChatArea: React.FC<ChatAreaProps> = ({ conversation, onMessageSent, onLoad
   const handleSend = async () => {
     if (!input.trim() && attachedFiles.length === 0) return;
     if (!conversation?.id) return;
+
+    // Check if API key is set before sending
+    try {
+      const apiKeyStatus = await window.electron.getApiKeyStatus();
+      if (!apiKeyStatus.hasApiKey) {
+        setSendError({
+          message: 'API Key Required',
+          details: 'Please set your Anthropic API key in Settings before sending messages.'
+        });
+
+        // Open settings modal if callback is provided
+        if (onOpenSettings) {
+          onOpenSettings();
+        }
+
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to check API key status:', error);
+      setSendError({
+        message: 'Configuration Error',
+        details: 'Unable to verify API key status. Please check your settings.'
+      });
+      return;
+    }
 
     // Store the message content before clearing
     const messageContent = input;

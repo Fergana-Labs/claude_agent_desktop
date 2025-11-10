@@ -245,6 +245,21 @@ export class ConversationAgentManager extends EventEmitter {
   }
 
   /**
+   * Update the API key (requires recreating all agents)
+   */
+  async updateApiKey(apiKey: string): Promise<void> {
+    this.config.apiKey = apiKey;
+
+    // Recreate all existing agents with the new API key
+    // This ensures ongoing conversations can use the new key
+    const conversationIds = Array.from(this.agents.keys());
+    for (const conversationId of conversationIds) {
+      await this.deleteAgent(conversationId);
+      // Agent will be recreated on next message with new API key
+    }
+  }
+
+  /**
    * Cleanup all agents (called on shutdown)
    */
   async cleanup(): Promise<void> {
