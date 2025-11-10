@@ -4,10 +4,25 @@ A desktop application that lets you use Claude Agent without needing to install 
 
 ## Features
 
-- **Nicer UI for Claude Code**: Use Claude from a user-friendly desktop app.
-- **File Operations**: Read, write, and edit files with AI assistance
-- **Claude Skills**: We gave it some [skills](https://www.claude.com/blog/skills) from the Claude webapp that aren't available to the Claude Code CLI quite yet.
-- **Bring Your Own API Key**: Use your own Anthropic API key for full control
+- **Nicer UI for Claude Code**: A clean, modern desktop interface that wraps the powerful Claude Code CLI. No terminal setup or command-line knowledge required - just launch the app and start coding with Claude in a native desktop environment.
+
+- **Comprehensive File Operations**: Claude can read, write, edit, and analyze files across your entire project. It understands code structure, can make precise edits using line-based modifications, and handles multiple file formats including source code, configuration files, and more.
+
+- **Enhanced Claude Skills**: Includes premium capabilities from the Claude web app that aren't available in the standard Claude Code CLI:
+  - **Excel**: Create, read, edit, and analyze Microsoft Excel spreadsheets (.xlsx files) with formulas, calculations, and charts
+  - **PowerPoint**: Generate and manipulate PowerPoint presentations (.pptx files) with slides, text, bullets, tables, and charts
+  - **Word**: Create, read, edit, and format Microsoft Word documents (.docx files)
+
+- **Powerful Development Tools**: Full access to Claude Code's toolkit including:
+  - Bash command execution for running tests, builds, and scripts
+  - Code search and navigation with glob patterns and grep
+  - Git operations for version control
+  - Web search and web fetching for up-to-date information
+  - Task planning and management with todo lists
+
+- **Persistent Conversations**: All conversations are automatically saved in a local SQLite database. Resume any previous session and maintain context across multiple coding tasks.
+
+- **Bring Your Own API Key**: Use your own Anthropic API key for complete control over usage and billing. Your key is securely stored locally on your machine - no third-party servers involved.
 
 ## System Requirements
 
