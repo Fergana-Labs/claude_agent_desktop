@@ -230,15 +230,11 @@ if (require.main === module) {
   switch (command) {
     case 'create':
       const config = JSON.parse(args[2]);
-      PowerPointTool.createPresentation(args[1], config)
-        .then(() => console.log('Presentation created'))
-        .catch(console.error);
+      PowerPointTool.createPresentation(args[1], config).catch(console.error);
       break;
     case 'outline':
       const outline = JSON.parse(args[2]);
-      PowerPointTool.createFromOutline(args[1], outline)
-        .then(() => console.log('Presentation created from outline'))
-        .catch(console.error);
+      PowerPointTool.createFromOutline(args[1], outline).catch(console.error);
       break;
     default:
       console.error('Unknown command');

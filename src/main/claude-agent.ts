@@ -84,19 +84,10 @@ export class ClaudeAgent extends EventEmitter {
   constructor(config: ClaudeAgentConfig) {
     super();
     this.config = config;
-    console.log('this config is config, and config is', config)
 
     // Initialize session ID and mode from config (for session restoration)
     this.currentSessionId = config.sessionId || null;
-    console.log('config mode is ', config.mode)
     this.mode = config.mode || 'default';
-    console.log('this mode is', this.mode)
-
-    console.log('[ClaudeAgent] Initialized with:', {
-      projectPath: config.projectPath,
-      sessionId: this.currentSessionId,
-      mode: this.mode,
-    });
   }
 
   // Queue a message for processing
@@ -107,7 +98,6 @@ export class ClaudeAgent extends EventEmitter {
   ): Promise<void> {
     // Check if MCP config needs to be reloaded before processing
     if (this.needsReload) {
-      console.log('[ClaudeAgent] Applying new MCP configuration before processing message');
       this.needsReload = false;
       // Config has already been updated in reloadMcpConfig method
     }
@@ -123,7 +113,6 @@ export class ClaudeAgent extends EventEmitter {
 
   // Process queued messages using async generator pattern
   private async processQueue(): Promise<void> {
-    console.log('henry we are processing the damn queue');
     if (this.isProcessing) return;
     this.isProcessing = true;
     this.isInterrupted = false;
@@ -192,26 +181,11 @@ export class ClaudeAgent extends EventEmitter {
           },
         };
 
-        // Log SDK initialization details
-        console.log('[ClaudeAgent] Starting SDK query with options:', {
-          model: options.model,
-          cwd: options.cwd,
-          plugins: options.plugins,
-          resume: options.resume,
-          forkSession: options.forkSession,
-          isFork,
-          hasApiKey: !!(options.env?.ANTHROPIC_API_KEY),
-          messageQueueLength: this.messageQueue.length,
-          processingAttempt: this.processingAttempts,
-        });
-
         // Create async generator for messages
         const messageGenerator = this.createMessageGenerator();
 
         // Use streaming input mode with async generator
         this.currentQuery = query({ prompt: messageGenerator, options });
-
-        console.log('henry we are about to set permission mode as ', this.mode)
 
         // Set permission mode on the query
         this.currentQuery.setPermissionMode(this.mode);
@@ -220,7 +194,6 @@ export class ClaudeAgent extends EventEmitter {
         for await (const sdkMessage of this.currentQuery) {
           // Check if abort was signaled - break immediately
           if (this.abortController?.signal.aborted) {
-            console.log('[ClaudeAgent] Abort signal detected, breaking out of message loop');
             throw new Error('AbortError');
           }
           await this.handleMessage(sdkMessage);
@@ -231,7 +204,6 @@ export class ClaudeAgent extends EventEmitter {
 
       } catch (error: any) {
         if (error.name === 'AbortError' || error.message?.includes('interrupt') || error.message?.includes('AbortError')) {
-          console.log('[ClaudeAgent] Query interrupted, preserving queued messages');
           this.isInterrupted = true;
 
           // Notify callbacks about interruption for currently processing messages
@@ -303,23 +275,11 @@ export class ClaudeAgent extends EventEmitter {
 
     const hookInput = input as PreToolUseHookInput;
 
-    console.log('henry we are calling preToolUse')
-    console.log('[ClaudeAgent] PreToolUse hook called:', {
-      toolName: hookInput.tool_name,
-      toolUseID,
-      mode: this.mode,
-      inputKeys: typeof hookInput.tool_input === 'object' && hookInput.tool_input !== null
-        ? Object.keys(hookInput.tool_input)
-        : 'not an object',
-    });
-
     // Get callbacks for current message being processed
     const callbacks = this.callbackQueue[this.currentCallbackIndex] || {};
 
     // Check if this is ExitPlanMode tool - handle specially
     if (hookInput.tool_name === 'ExitPlanMode') {
-      console.log('[ClaudeAgent] ExitPlanMode detected in PreToolUse hook');
-
       // Extract the plan from the tool input
       const toolInput = hookInput.tool_input as any;
       const plan = toolInput?.plan || 'No plan provided';
@@ -331,7 +291,6 @@ export class ClaudeAgent extends EventEmitter {
           // Store a pending approval so we can handle the response later
           this.pendingPlanApprovals.set(requestId, {
             resolve: () => {
-              console.log('[ClaudeAgent] Plan approval resolved - switching to acceptEdits mode');
               // When plan is approved, allow the tool AND switch to acceptEdits mode
               // This allows Claude to execute file edits without asking for each one
               this.mode = 'acceptEdits';
@@ -346,7 +305,6 @@ export class ClaudeAgent extends EventEmitter {
               });
             },
             reject: (error: Error) => {
-              console.log('[ClaudeAgent] Plan approval rejected:', error);
               // If plan is rejected, deny the tool
               resolve({
                 continue: true,
@@ -365,7 +323,6 @@ export class ClaudeAgent extends EventEmitter {
             timestamp: Date.now(),
           };
 
-          console.log('[ClaudeAgent] Triggering onPlanApprovalRequest from PreToolUse:', request);
           callbacks.onPlanApprovalRequest!(request);
 
           // Handle abort signal
@@ -376,7 +333,6 @@ export class ClaudeAgent extends EventEmitter {
         });
       } else {
         // No callback registered, auto-approve and switch to acceptEdits mode
-        console.log('[ClaudeAgent] No onPlanApprovalRequest callback, auto-approving plan');
         this.mode = 'acceptEdits';
         this.emit('mode-changed', { mode: 'acceptEdits' });
 
@@ -391,9 +347,7 @@ export class ClaudeAgent extends EventEmitter {
     }
 
     // If in bypass mode, auto-allow everything
-    console.log('henry we r in mode', this.mode)
     if (this.mode === 'bypassPermissions') {
-      console.log('[ClaudeAgent] bypassPermissions mode active, auto-allowing');
       return {
         continue: true,
         hookSpecificOutput: {
@@ -437,7 +391,6 @@ export class ClaudeAgent extends EventEmitter {
         timestamp: Date.now(),
       };
 
-      console.log('[ClaudeAgent] Triggering onPermissionRequest:', request);
       callbacks.onPermissionRequest!(request);
 
       // Handle abort signal
@@ -458,8 +411,6 @@ export class ClaudeAgent extends EventEmitter {
     // Store all callbacks in queue to route responses correctly
     this.callbackQueue = messagesToProcess.map(msg => msg.callbacks);
     this.currentCallbackIndex = 0;
-
-    console.log('[ClaudeAgent] Processing batch of', messagesToProcess.length, 'messages');
 
     for (const queued of messagesToProcess) {
       // Build message content - handle images vs non-images differently
@@ -510,8 +461,6 @@ export class ClaudeAgent extends EventEmitter {
                 data: base64Data
               }
             } as ImageBlockParam);
-
-            console.log(`[ClaudeAgent] Added image: ${path.basename(imagePath)} (${mediaType})`);
           } catch (error) {
             console.error(`[ClaudeAgent] Error reading image file ${imagePath}:`, error);
             nonImageFiles.push(imagePath); // Fall back to text path
@@ -536,13 +485,6 @@ export class ClaudeAgent extends EventEmitter {
         messageContent = queued.message;
       }
 
-      console.log('[ClaudeAgent] Yielding message to SDK:', {
-        contentPreview: typeof messageContent === 'string' ? messageContent.substring(0, 100) : `${messageContent.length} content blocks`,
-        hasAttachments: queued.attachments.length > 0,
-        attachmentCount: queued.attachments.length,
-        imageCount: queued.attachments.filter(f => isImageFile(f)).length,
-      });
-
       // Yield SDKUserMessage object
       yield {
         type: 'user',
@@ -560,33 +502,17 @@ export class ClaudeAgent extends EventEmitter {
     // Get callbacks for current message being processed
     const callbacks: MessageCallbacks = this.callbackQueue[this.currentCallbackIndex] || {};
 
-    // Debug logging for all SDK messages
-    console.log('[ClaudeAgent] handleMessage:', {
-      type: message.type,
-      callbackIndex: this.currentCallbackIndex,
-      queueLength: this.callbackQueue.length,
-      hasOnToken: !!callbacks.onToken,
-      hasOnThinking: !!callbacks.onThinking,
-      hasOnToolUse: !!callbacks.onToolUse,
-      messageKeys: Object.keys(message),
-      fullMessage: JSON.stringify(message).substring(0, 200),
-    });
-
     // Extract and store session ID for conversation continuity
     if ('session_id' in message && message.session_id) {
       this.currentSessionId = message.session_id;
     }
 
-    console.log('henry we are running handleMessage')
-
     switch (message.type) {
       case 'assistant':
         // Extract text, thinking, and tool_use from assistant message
-        console.log('[ClaudeAgent] Assistant message received');
         if (message.message && 'content' in message.message) {
           const content = message.message.content;
           if (Array.isArray(content)) {
-            console.log('[ClaudeAgent] Content blocks:', content.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking, name: b.name })));
             content.forEach((block: any) => {
               if (block.type === 'text' && block.text && callbacks.onToken) {
                 const fullText = block.text;
@@ -595,21 +521,14 @@ export class ClaudeAgent extends EventEmitter {
 
                 if (streamedText.length === 0) {
                   // No streaming occurred, send full text
-                  console.log('[ClaudeAgent] No streaming occurred, sending full text block');
                   callbacks.onToken(fullText);
                 } else if (fullText.length > streamedText.length) {
                   // Streaming failed midway, send the missing part
                   const missingText = fullText.substring(streamedText.length);
-                  console.log('[ClaudeAgent] Streaming incomplete, sending missing text:', missingText.substring(0, 50));
                   callbacks.onToken(missingText);
                 } else if (fullText !== streamedText) {
                   // Edge case: Text differs but same length (shouldn't happen, but handle it)
-                  console.warn('[ClaudeAgent] Streamed text differs from final text!');
-                  console.log('[ClaudeAgent] Sending full text block to be safe');
                   callbacks.onToken(fullText);
-                } else {
-                  // Streaming completed successfully, no action needed
-                  console.log('[ClaudeAgent] Text fully streamed, skipping duplicate');
                 }
               } else if (block.type === 'thinking' && callbacks.onThinking) {
                 callbacks.onThinking(block.thinking);
@@ -622,15 +541,8 @@ export class ClaudeAgent extends EventEmitter {
         break;
 
       case 'stream_event':
-        // Handle streaming events - log full structure to debug
+        // Handle streaming events
         const streamMsg = message as any;
-        console.log('[ClaudeAgent] Stream event structure:', {
-          hasEvent: !!streamMsg.event,
-          eventType: streamMsg.event?.type,
-          hasDelta: !!streamMsg.event?.delta,
-          deltaType: streamMsg.event?.delta?.type,
-          keys: Object.keys(streamMsg),
-        });
 
         // Try different possible structures
         if (streamMsg.event && streamMsg.event.delta) {
@@ -669,21 +581,11 @@ export class ClaudeAgent extends EventEmitter {
               callbacks.onToken(newStreamed);
             }
           }
-        } else {
-          // Log unknown stream event structure
-          console.log('[ClaudeAgent] Stream event structure:', {
-            hasEvent: !!streamMsg.event,
-            eventType: streamMsg.event?.type,
-            hasDelta: !!streamMsg.event?.delta,
-            deltaType: streamMsg.event?.delta?.type,
-            keys: Object.keys(streamMsg),
-          });
         }
         break;
 
       case 'tool_progress':
         // Notify about tool execution
-        console.log('henry we are in case tool progress')
         if ('tool' in message) {
           const toolMsg = message as any;
 
@@ -697,11 +599,6 @@ export class ClaudeAgent extends EventEmitter {
 
       case 'result':
         // Final result message for current user message - advance to next callback
-        console.log('[ClaudeAgent] Result received, advancing to next message callback', {
-          from: this.currentCallbackIndex,
-          to: this.currentCallbackIndex + 1,
-          queueLength: this.callbackQueue.length,
-        });
         // Notify consumer that this reply has completed so they can flush any buffered chunks
         if (callbacks.onResult) {
           try {
@@ -724,18 +621,6 @@ export class ClaudeAgent extends EventEmitter {
 
       case 'system':
         // System initialization and hook responses
-        const systemMsg = message as any;
-        if (systemMsg.subtype === 'hook_response') {
-          console.log('[ClaudeAgent] Hook response received:', {
-            hook_name: systemMsg.hook_name,
-            hook_event: systemMsg.hook_event,
-            exit_code: systemMsg.exit_code,
-            stdout: systemMsg.stdout,
-            stderr: systemMsg.stderr,
-          });
-        } else {
-          console.log('[ClaudeAgent] System message received');
-        }
         break;
 
       default:
@@ -751,18 +636,13 @@ export class ClaudeAgent extends EventEmitter {
       // Set interrupted flag to stop the processing loop
       this.isInterrupted = true;
 
-      console.log('[ClaudeAgent] Interrupt requested, queue length:', this.messageQueue.length);
-
       // FIRST: Abort via AbortController for immediate cancellation
       if (this.abortController) {
-        console.log('[ClaudeAgent] Aborting via AbortController');
         this.abortController.abort();
       }
 
       // SECOND: Try SDK's interrupt method as backup
       if (this.currentQuery && this.isProcessing) {
-        console.log('[ClaudeAgent] Calling SDK interrupt method');
-
         // Add timeout to prevent hanging forever
         const interruptPromise = this.currentQuery.interrupt();
         const timeoutPromise = new Promise((_, reject) =>
@@ -771,13 +651,8 @@ export class ClaudeAgent extends EventEmitter {
 
         try {
           await Promise.race([interruptPromise, timeoutPromise]);
-          console.log('[ClaudeAgent] SDK interrupt completed successfully');
         } catch (error: any) {
-          if (error.message === 'Interrupt timeout') {
-            console.warn('[ClaudeAgent] SDK interrupt timed out after 1s, relying on AbortController');
-          } else {
-            console.warn('[ClaudeAgent] SDK interrupt error (continuing anyway):', error);
-          }
+          // Interrupt errors are expected, continue anyway
         }
       }
     } catch (error) {
@@ -801,15 +676,13 @@ export class ClaudeAgent extends EventEmitter {
       const interruptError = new Error('Interrupted by user');
       const hadPendingRequests = this.pendingPermissionRequests.size > 0 || this.pendingPlanApprovals.size > 0;
 
-      this.pendingPermissionRequests.forEach((request, requestId) => {
-        console.log('[ClaudeAgent] Rejecting pending permission request:', requestId);
+      this.pendingPermissionRequests.forEach((request) => {
         request.reject(interruptError);
       });
       this.pendingPermissionRequests.clear();
 
       // Clean up pending plan approvals by rejecting them
-      this.pendingPlanApprovals.forEach((request, requestId) => {
-        console.log('[ClaudeAgent] Rejecting pending plan approval:', requestId);
+      this.pendingPlanApprovals.forEach((request) => {
         request.reject(interruptError);
       });
       this.pendingPlanApprovals.clear();
@@ -830,8 +703,6 @@ export class ClaudeAgent extends EventEmitter {
         interrupted: true,
         remainingMessages: this.messageQueue.length
       });
-
-      console.log('[ClaudeAgent] Interrupt complete, messages preserved in queue:', this.messageQueue.length);
     }
   }
 
@@ -841,12 +712,6 @@ export class ClaudeAgent extends EventEmitter {
     approved: boolean,
     updatedInput?: Record<string, unknown>
   ): Promise<void> {
-    console.log('[ClaudeAgent] respondToPermissionRequest called:', {
-      requestId,
-      approved,
-      hasUpdatedInput: !!updatedInput,
-    });
-
     const pendingRequest = this.pendingPermissionRequests.get(requestId);
 
     if (!pendingRequest) {
@@ -867,7 +732,6 @@ export class ClaudeAgent extends EventEmitter {
           updatedInput: updatedInput,
         }
       };
-      console.log('[ClaudeAgent] Resolving permission request as allowed');
       pendingRequest.resolve(result);
     } else {
       const result: HookJSONOutput = {
@@ -878,7 +742,6 @@ export class ClaudeAgent extends EventEmitter {
           permissionDecisionReason: 'User denied permission',
         }
       };
-      console.log('[ClaudeAgent] Resolving permission request as denied');
       pendingRequest.resolve(result);
     }
   }
@@ -888,18 +751,11 @@ export class ClaudeAgent extends EventEmitter {
     requestId: string,
     approved: boolean
   ): Promise<void> {
-    console.log('[ClaudeAgent] respondToPlanApproval called:', {
-      requestId,
-      approved,
-    });
-
     const pendingApproval = this.pendingPlanApprovals.get(requestId);
 
     if (!pendingApproval) {
-      console.warn('[ClaudeAgent] No pending plan approval found for ID:', requestId);
       // Still try to set mode if approved
       if (approved && this.currentQuery && this.isProcessing) {
-        console.log('[ClaudeAgent] Switching from plan mode to default mode');
         this.currentQuery.setPermissionMode('default');
         this.mode = 'default';
         // Emit event for mode change so it can be persisted
@@ -914,7 +770,6 @@ export class ClaudeAgent extends EventEmitter {
     if (approved) {
       // Switch from plan mode to default execution mode
       if (this.currentQuery && this.isProcessing) {
-        console.log('[ClaudeAgent] Plan approved, switching to default mode');
         this.currentQuery.setPermissionMode('default');
         this.mode = 'default';
         // Emit event for mode change so it can be persisted
@@ -923,7 +778,6 @@ export class ClaudeAgent extends EventEmitter {
       pendingApproval.resolve();
     } else {
       // User denied the plan - stay in plan mode or end conversation
-      console.log('[ClaudeAgent] Plan denied by user');
       pendingApproval.reject(new Error('Plan denied by user'));
     }
   }
@@ -963,14 +817,12 @@ export class ClaudeAgent extends EventEmitter {
 
   // Clear the message queue (useful after interruption if user wants to discard pending messages)
   clearQueue(): void {
-    console.log('[ClaudeAgent] Clearing message queue, discarding', this.messageQueue.length, 'messages');
     this.messageQueue = [];
   }
 
   // Resume processing if there are queued messages (useful after interruption)
   async resumeProcessing(): Promise<void> {
     if (this.messageQueue.length > 0 && !this.isProcessing) {
-      console.log('[ClaudeAgent] Resuming processing with', this.messageQueue.length, 'queued messages');
       this.isInterrupted = false;
       await this.processQueue();
     }
@@ -978,8 +830,6 @@ export class ClaudeAgent extends EventEmitter {
 
   // Reload MCP configuration
   async reloadMcpConfig(newMcpServers?: Record<string, McpServerConfig>): Promise<void> {
-    console.log('[ClaudeAgent] Marking agent for MCP config reload');
-
     // Update config if new servers provided
     if (newMcpServers !== undefined) {
       this.config.mcpServers = newMcpServers;

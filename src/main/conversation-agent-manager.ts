@@ -53,18 +53,9 @@ export class ConversationAgentManager extends EventEmitter {
 
     // Get conversation details from database
     const conversation = await this.conversationManager.getConversation(conversationId);
-    console.log('we in get or create agent and the conversation is', conversation)
     if (!conversation) {
       throw new Error(`Conversation ${conversationId} not found`);
     }
-
-    console.log('[AgentManager] Creating new agent for conversation:', {
-      conversationId,
-      projectPath: conversation.projectPath,
-      sessionId: conversation.sessionId,
-      parentSessionId: conversation.parentSessionId,
-      mode: conversation.mode,
-    });
 
     // Create new agent with conversation-specific config
     const agent = new ClaudeAgent({
@@ -82,27 +73,22 @@ export class ConversationAgentManager extends EventEmitter {
 
     // Forward agent events with conversationId
     agent.on('processing-started', () => {
-      console.log('[AgentManager] Processing started for conversation:', conversationId);
       // Include a start timestamp so the renderer can place the streaming block chronologically
       this.emit('processing-started', { conversationId, startedAt: Date.now() });
     });
 
     agent.on('processing-complete', (data: any) => {
-      console.log('[AgentManager] Processing complete for conversation:', conversationId, data);
       this.emit('processing-complete', { conversationId, ...data });
     });
 
     agent.on('clear-permissions', () => {
-      console.log('[AgentManager] Clear permissions for conversation:', conversationId);
       this.emit('clear-permissions', { conversationId });
     });
 
     // Listen for mode changes and persist to database
     agent.on('mode-changed', async (data: { mode: PermissionMode }) => {
-      console.log('[AgentManager] Mode changed for conversation:', conversationId, 'to', data.mode);
       try {
         await this.conversationManager.updateMode(conversationId, data.mode);
-        console.log('[AgentManager] Mode persisted to database');
         // Emit event so the renderer can update the UI
         this.emit('mode-changed', { conversationId, mode: data.mode });
       } catch (error) {
@@ -173,7 +159,6 @@ export class ConversationAgentManager extends EventEmitter {
       await agent.interrupt();
       // Remove from map
       this.agents.delete(conversationId);
-      console.log('[AgentManager] Deleted agent for conversation:', conversationId);
     }
   }
 
@@ -206,8 +191,6 @@ export class ConversationAgentManager extends EventEmitter {
    * Agents will apply the new config on their next message
    */
   async reloadMcpConfig(newMcpServers?: Record<string, McpServerConfig>): Promise<void> {
-    console.log('[AgentManager] Reloading MCP configuration for all agents...');
-
     // Update stored config
     if (newMcpServers !== undefined) {
       this.config.mcpServers = newMcpServers;
@@ -219,7 +202,6 @@ export class ConversationAgentManager extends EventEmitter {
     );
 
     await Promise.all(reloadPromises);
-    console.log('[AgentManager] MCP configuration reloaded for', this.agents.size, 'agents');
   }
 
   /**
@@ -251,7 +233,6 @@ export class ConversationAgentManager extends EventEmitter {
     additionalDirectories?: string[];
     systemPrompt?: string | { type: 'preset'; preset: 'claude_code'; append: string };
   }): void {
-    console.log('[AgentManager] Updating settings:', settings);
     if (settings.model !== undefined) {
       this.config.model = settings.model;
     }
@@ -267,7 +248,6 @@ export class ConversationAgentManager extends EventEmitter {
    * Cleanup all agents (called on shutdown)
    */
   async cleanup(): Promise<void> {
-    console.log('[AgentManager] Cleaning up all agents...');
     const promises = Array.from(this.agents.keys()).map(id => this.deleteAgent(id));
     await Promise.all(promises);
   }

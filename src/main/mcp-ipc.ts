@@ -95,7 +95,6 @@ export function registerMcpIpcHandlers(
       // Reload all agents with new config
       await agentManager.reloadMcpConfig(mcpServers);
 
-      console.log('[mcp:reloadConfig] Successfully reloaded MCP configuration');
       return {
         success: true,
         message: 'MCP configuration reloaded. Changes will apply on next message.'
@@ -108,6 +107,4 @@ export function registerMcpIpcHandlers(
       };
     }
   });
-
-  console.log('[MCP IPC] Handlers registered');
 }

@@ -35,15 +35,9 @@ export class McpConfigLoader {
       // Cache the config
       this.cachedConfig = expanded;
 
-      console.log('[McpConfig] Loaded MCP configuration:', {
-        serverCount: Object.keys(expanded).length,
-        servers: Object.keys(expanded)
-      });
-
       return expanded;
     } catch (error: any) {
       if (error.code === 'ENOENT') {
-        console.log('[McpConfig] No .mcp.json file found, using empty config');
         this.cachedConfig = {};
         return {};
       }
@@ -65,11 +59,6 @@ export class McpConfigLoader {
 
       // Update cache
       this.cachedConfig = servers;
-
-      console.log('[McpConfig] Saved MCP configuration:', {
-        serverCount: Object.keys(servers).length,
-        servers: Object.keys(servers)
-      });
     } catch (error: any) {
       console.error('[McpConfig] Error saving .mcp.json:', error);
       throw new Error(`Failed to save MCP configuration: ${error.message}`);

@@ -89,18 +89,11 @@ app.whenReady().then(async () => {
   const projectPath = process.cwd();
   const mcpConfigLoader = new McpConfigLoader(projectPath);
   const mcpServers = await mcpConfigLoader.load();
-  console.log('[Main] Loaded MCP servers:', Object.keys(mcpServers));
 
   // Note: Agent manager will be passed to IPC handlers after initialization
 
   // Initialize Agent Manager
   const pluginsPath = path.join(__dirname, '../../plugins');
-  console.log('[Main] Initializing agent manager with plugins path:', pluginsPath);
-  console.log('[Main] Plugins directory exists:', existsSync(pluginsPath));
-  if (existsSync(pluginsPath)) {
-    const { readdirSync } = await import('fs');
-    console.log('[Main] Plugins directory contents:', readdirSync(pluginsPath));
-  }
 
   agentManager = new ConversationAgentManager(
     {
@@ -116,23 +109,19 @@ app.whenReady().then(async () => {
 
   // Forward processing events to renderer
   agentManager.on('processing-started', (data: any) => {
-    console.log('[Main] Processing started:', data);
     mainWindow?.webContents.send('processing-started', data);
   });
 
   agentManager.on('processing-complete', (data: any) => {
-    console.log('[Main] Processing complete:', data);
     mainWindow?.webContents.send('processing-complete', data);
   });
 
   agentManager.on('clear-permissions', (data: any) => {
-    console.log('[Main] Clear permissions:', data);
     mainWindow?.webContents.send('clear-permissions', data);
   });
 
   // Forward mode change events to renderer
   agentManager.on('mode-changed', (data: any) => {
-    console.log('[Main] Mode changed:', data);
     mainWindow?.webContents.send('mode-changed', data);
   });
 
@@ -172,14 +161,6 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     if (!conversation) {
       throw new Error('Conversation not found');
     }
-
-    console.log('[send-message] Processing message:', {
-      conversationId,
-      projectPath: conversation.projectPath,
-      sessionId: conversation.sessionId,
-      messagePreview: message.substring(0, 50),
-      hasAttachments: !!attachments?.length,
-    });
 
     // Save user message to the specified conversation
     const messageId = await conversationManager.saveMessage({
@@ -317,7 +298,6 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
     // Update session ID in database if it changed
     const newSessionId = agentManager.getCurrentSessionId(conversationId);
     if (newSessionId && newSessionId !== conversation.sessionId) {
-      console.log('[send-message] Updating sessionId for conversation:', conversationId);
       await conversationManager.updateSessionId(conversationId, newSessionId);
     }
 
@@ -346,8 +326,6 @@ ipcMain.handle('send-message', async (event, message: string, conversationId: st
       } catch (saveError) {
         console.error('Error saving error message:', saveError);
       }
-    } else {
-      console.log('[send-message] Message interrupted by user, not saving as error');
     }
 
     throw error;
@@ -412,7 +390,6 @@ ipcMain.handle('update-app-settings', async (event, settings: {
     systemPrompt: systemPrompt,
   });
 
-  console.log('[Main] App settings updated');
   return { success: true };
 });
 
@@ -422,22 +399,11 @@ ipcMain.handle('get-conversation', async (event, conversationId: string, limit?:
   }
 
   try {
-    console.log('[get-conversation] Loading conversation:', conversationId, { limit, offset });
-
     // Set this as the active conversation for the conversation manager
     conversationManager.setCurrentConversationId(conversationId);
 
     // Simply return the conversation - the agent will be created on-demand when needed
     const conversation = await conversationManager.getConversation(conversationId, limit, offset);
-
-    if (conversation) {
-      console.log('[get-conversation] Conversation details:', {
-        id: conversation.id,
-        projectPath: conversation.projectPath,
-        sessionId: conversation.sessionId,
-        mode: conversation.mode,
-      });
-    }
 
     return conversation;
   } catch (error) {
@@ -452,7 +418,6 @@ ipcMain.handle('new-conversation-with-folder', async (event, folderPath: string,
   }
 
   // Create new conversation with optional mode
-  console.log('henry we are about to make a new conversation via conversationManager.')
   const conversationId = await conversationManager.newConversation(mode as any);
 
   // Set as active conversation
