@@ -51,6 +51,9 @@
   position: relative;
   color: var(--text-primary);
   font-size: 15px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
 }
 
 .message.user .message-content {
@@ -345,6 +348,13 @@ textarea:disabled {
   margin-bottom: 0;
 }
 
+.message-content a {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  word-break: break-all;
+  overflow-wrap: break-word;
+}
+
 /* Tool Message Styles */
 .tool-message {
   max-width: 100%;
@@ -436,6 +446,9 @@ textarea:disabled {
   line-height: 1.5;
   white-space: pre-wrap;
   word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .error-content {
