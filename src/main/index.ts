@@ -8,6 +8,8 @@ import { ConversationManager } from './conversation-manager.js';
 import { McpConfigLoader } from './mcp-config.js';
 import { registerMcpIpcHandlers } from './mcp-ipc.js';
 import { ApiKeyManager } from './api-key-manager.js';
+import { ProxyBootstrap } from './proxy-bootstrap.js';
+import { ProxyRefreshService } from './proxy-refresh-service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -49,6 +51,7 @@ let mainWindow: BrowserWindow | null = null;
 let agentManager: ConversationAgentManager | null = null;
 let conversationManager: ConversationManager | null = null;
 let apiKeyManager: ApiKeyManager | null = null;
+let proxyRefreshService: ProxyRefreshService | null = null;
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -97,6 +100,36 @@ app.whenReady().then(async () => {
     const iconPath = path.join(__dirname, '../../logo.png');
     if (existsSync(iconPath)) {
       app.dock.setIcon(iconPath);
+    }
+  }
+
+  // Bootstrap proxy configuration (if enabled)
+  if (process.env.ENABLE_PROXY === 'true') {
+    try {
+      console.log('Bootstrapping proxy configuration...');
+      const proxyConfig = await ProxyBootstrap.getOrCreateProxyConfig();
+
+      if (proxyConfig) {
+        // Setup environment to use proxy
+        ProxyBootstrap.setupProxyEnvironment(proxyConfig);
+
+        // Health check the proxy
+        const isHealthy = await ProxyBootstrap.healthCheck(proxyConfig.proxyBaseUrl);
+        if (!isHealthy) {
+          console.warn('Proxy health check failed - API calls may fail');
+        } else {
+          console.log('Proxy is healthy and ready');
+        }
+
+        // Start background token refresh service
+        proxyRefreshService = new ProxyRefreshService();
+        proxyRefreshService.start();
+      } else {
+        console.warn('Failed to bootstrap proxy - falling back to direct API access');
+      }
+    } catch (error) {
+      console.error('Proxy bootstrap error:', error);
+      console.warn('Continuing without proxy - using direct API access');
     }
   }
 
@@ -164,6 +197,11 @@ app.on('window-all-closed', async () => {
   // Cleanup all agents before quitting
   if (agentManager) {
     await agentManager.cleanup();
+  }
+
+  // Stop proxy refresh service
+  if (proxyRefreshService) {
+    proxyRefreshService.stop();
   }
 
   if (process.platform !== 'darwin') {

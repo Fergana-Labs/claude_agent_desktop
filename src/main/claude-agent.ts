@@ -170,6 +170,7 @@ export class ClaudeAgent extends EventEmitter {
           env: {
             PATH: process.env.PATH,
             ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+            ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
           },
           // PreToolUse hook
           hooks: {
