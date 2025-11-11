@@ -99,6 +99,9 @@ export class AnthropicProxy {
         body: body ? JSON.stringify(body) : undefined,
         // Don't follow redirects automatically
         maxRedirections: 0,
+        // Increase timeouts for slower connections
+        headersTimeout: 60000, // 60 seconds
+        bodyTimeout: 120000, // 120 seconds
       });
 
       // Check if response is streaming (SSE)

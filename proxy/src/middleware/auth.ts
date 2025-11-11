@@ -93,6 +93,7 @@ export async function modelAuthMiddleware(
   const payload = request.tokenPayload;
 
   if (!payload) {
+    request.log.error('Model auth: No token payload');
     reply.code(401).send({
       error: 'Unauthorized',
       message: 'Missing token payload',
@@ -104,14 +105,32 @@ export async function modelAuthMiddleware(
   const body = request.body as any;
   const requestedModel = body?.model;
 
+  request.log.debug({
+    hasBody: !!body,
+    requestedModel,
+    bodyKeys: body ? Object.keys(body) : [],
+  }, 'Model auth middleware check');
+
   if (!requestedModel) {
+    request.log.debug('No model in request, allowing through');
     // Let it pass - Anthropic API will handle validation
     return;
   }
 
   // Check if model is in the allowlist
   if (payload.models && payload.models.length > 0) {
+    request.log.debug({
+      requestedModel,
+      allowedModels: payload.models,
+      isAllowed: payload.models.includes(requestedModel),
+    }, 'Model authorization check');
+
     if (!payload.models.includes(requestedModel)) {
+      request.log.warn({
+        requestedModel,
+        allowedModels: payload.models,
+      }, 'Model not allowed for token');
+
       reply.code(403).send({
         error: 'Forbidden',
         message: `Model '${requestedModel}' is not allowed for this token. Allowed models: ${payload.models.join(', ')}`,

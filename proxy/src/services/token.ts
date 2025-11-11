@@ -33,6 +33,10 @@ export class TokenService {
         'claude-3-5-haiku-20241022',
         'claude-3-opus-20240229',
         'claude-sonnet-4-5-20250929',
+        // Also allow short-form model names used by SDK
+        'claude-sonnet-4-5',
+        'claude-opus-4-1',
+        'claude-haiku-4-5',
       ],
       rate_limit: options?.rateLimit,
       spend_cap: options?.spendCap,
