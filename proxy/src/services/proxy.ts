@@ -57,11 +57,18 @@ export class AnthropicProxy {
       const targetUrl = `${this.anthropicBaseUrl}${path}`;
 
       // Prepare headers for Anthropic
+      // Note: Anthropic uses x-api-key header, not Authorization Bearer
       const anthropicHeaders: Record<string, string> = {
-        'Authorization': `Bearer ${this.anthropicApiKey}`,
+        'x-api-key': this.anthropicApiKey,
         'Content-Type': 'application/json',
         'anthropic-version': request.headers['anthropic-version'] as string || '2023-06-01',
       };
+
+      // Debug: log what API key we're using
+      request.log.debug({
+        apiKeyPrefix: this.anthropicApiKey?.substring(0, 20) + '...',
+        apiKeyLength: this.anthropicApiKey?.length,
+      }, 'Using Anthropic API key');
 
       // Add optional headers
       if (request.headers['anthropic-beta']) {
@@ -76,14 +83,8 @@ export class AnthropicProxy {
       // Get request body
       const body = request.body as any;
 
-      // Add metadata to track proxy requests (optional)
-      if (body && typeof body === 'object') {
-        body.metadata = {
-          ...body.metadata,
-          proxy_request_id: request.requestId,
-          device_id: request.tokenPayload?.device_id,
-        };
-      }
+      // Note: We don't modify the request body to avoid validation issues
+      // Usage tracking is done via our own tracking service
 
       request.log.info({
         targetUrl,
@@ -125,6 +126,15 @@ export class AnthropicProxy {
       } else {
         // Handle regular response
         const responseBody = await anthropicResponse.body.text();
+
+        // Log error responses for debugging
+        if (anthropicResponse.statusCode >= 400) {
+          request.log.error({
+            statusCode: anthropicResponse.statusCode,
+            responseBody: responseBody.substring(0, 500),
+            headers: Object.fromEntries(Object.entries(anthropicResponse.headers)),
+          }, 'Anthropic API error response');
+        }
 
         // Track usage
         try {

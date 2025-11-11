@@ -25,7 +25,7 @@ export const config: Config = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
   jwtExpirationHours: parseInt(process.env.JWT_EXPIRATION_HOURS || '24', 10),
   redisUrl: process.env.REDIS_URL,
-  logLevel: process.env.LOG_LEVEL || 'info',
+  logLevel: process.env.LOG_LEVEL || 'debug',  // Changed to debug for troubleshooting
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
   rateLimitWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000', 10), // 1 minute
   maxPayloadSize: parseInt(process.env.MAX_PAYLOAD_SIZE || '2097152', 10), // 2MB

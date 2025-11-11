@@ -182,6 +182,12 @@ export class ClaudeAgent extends EventEmitter {
           },
         };
 
+        // Debug: log what we're passing to SDK
+        console.log('[SDK ENV]', {
+          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY?.substring(0, 30) + '...',
+          ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+        });
+
         // Create async generator for messages
         const messageGenerator = this.createMessageGenerator();
 

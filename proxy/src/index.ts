@@ -32,13 +32,15 @@ async function main() {
     credentials: true,
   });
 
-  // Register rate limiting
+  // Register rate limiting (globally, but will be applied per-route)
+  // Note: Rate limiting is configured here but can be selectively applied to routes
   if (config.redisUrl) {
     // Use Redis for distributed rate limiting
     const Redis = (await import('ioredis')).default;
     const redis = new Redis(config.redisUrl);
 
     await app.register(rateLimit, {
+      global: false,  // Don't apply globally - let routes opt-in
       max: config.rateLimitMax,
       timeWindow: config.rateLimitWindow,
       redis,
@@ -51,6 +53,7 @@ async function main() {
   } else {
     // Use in-memory rate limiting
     await app.register(rateLimit, {
+      global: false,  // Don't apply globally - let routes opt-in
       max: config.rateLimitMax,
       timeWindow: config.rateLimitWindow,
       keyGenerator: (request) => {

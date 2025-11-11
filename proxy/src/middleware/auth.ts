@@ -13,33 +13,46 @@ export async function authMiddleware(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    // Extract Bearer token from Authorization header
+    // Extract token from Authorization header (Bearer <token>) or x-api-key header
     const authHeader = request.headers.authorization;
+    const apiKeyHeader = request.headers['x-api-key'];
 
-    if (!authHeader) {
+    console.log('[AUTH] authHeader:', authHeader ? authHeader.substring(0, 50) + '...' : 'MISSING');
+    console.log('[AUTH] x-api-key:', apiKeyHeader ? (typeof apiKeyHeader === 'string' ? apiKeyHeader.substring(0, 50) + '...' : 'ARRAY') : 'MISSING');
+
+    let token: string;
+    let originalToken: string | undefined;
+
+    if (authHeader) {
+      // Try Authorization: Bearer <token> format
+      const parts = authHeader.split(' ');
+      if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        reply.code(401).send({
+          error: 'Unauthorized',
+          message: 'Invalid Authorization header format. Expected: Bearer <token>',
+        });
+        return;
+      }
+      token = parts[1];
+      originalToken = parts[1];
+    } else if (apiKeyHeader) {
+      // Try x-api-key header (Anthropic SDK default)
+      token = typeof apiKeyHeader === 'string' ? apiKeyHeader : apiKeyHeader[0];
+      originalToken = token;
+    } else {
+      console.log('[AUTH] No auth header - sending 401');
       reply.code(401).send({
         error: 'Unauthorized',
-        message: 'Missing Authorization header',
+        message: 'Missing Authorization or x-api-key header',
       });
       return;
     }
-
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
-      reply.code(401).send({
-        error: 'Unauthorized',
-        message: 'Invalid Authorization header format. Expected: Bearer <token>',
-      });
-      return;
-    }
-
-    let token = parts[1];
 
     // Handle proxy-wrapped tokens (sk-ant-proxy-<actual-token>)
     // This allows the SDK to pass validation with a fake Anthropic key format
     if (token.startsWith('sk-ant-proxy-')) {
       token = token.substring('sk-ant-proxy-'.length);
-      request.log.debug({ originalToken: parts[1].substring(0, 30) + '...', strippedToken: token.substring(0, 30) + '...' }, 'Stripped sk-ant-proxy prefix');
+      request.log.debug({ originalToken: originalToken?.substring(0, 30) + '...', strippedToken: token.substring(0, 30) + '...' }, 'Stripped sk-ant-proxy prefix');
     }
 
     request.log.debug({ tokenPrefix: token.substring(0, 30) + '...' }, 'Verifying token');
