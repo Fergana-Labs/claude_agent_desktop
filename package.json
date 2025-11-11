@@ -86,7 +86,7 @@
       ]
     },
     "dmg": {
-      "sign": false
+      "sign": true
     },
     "afterSign": "scripts/notarize.cjs",
     "afterAllArtifactBuild": "scripts/notarize-dmg.cjs",
