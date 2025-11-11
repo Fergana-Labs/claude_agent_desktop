@@ -74,9 +74,7 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "notarize": {
-        "teamId": "MU28U3U2VB"
-      },
+      "notarize": false,
       "target": [
         {
           "target": "dmg",
@@ -91,6 +89,7 @@
       "sign": false
     },
     "afterSign": "scripts/notarize.cjs",
+    "afterAllArtifactBuild": "scripts/notarize-dmg.cjs",
     "win": {
       "target": "nsis",
       "icon": "logo.png"
