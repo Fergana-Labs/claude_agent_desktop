@@ -24,6 +24,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^2.2.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
@@ -63,12 +64,32 @@
       "dist/**/*",
       ".claude/**/*",
       "plugins/**/*",
-      "logo.png"
+      "logo.png",
+      "!node_modules/@anthropic-ai/claude-agent-sdk/vendor/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "logo.png"
+      "icon": "logo.png",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
     },
+    "dmg": {
+      "sign": true
+    },
+    "afterSign": "scripts/notarize.cjs",
+    "afterAllArtifactBuild": "scripts/notarize-dmg.cjs",
     "win": {
       "target": "nsis",
       "icon": "logo.png"
